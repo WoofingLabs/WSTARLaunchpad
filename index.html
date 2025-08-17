@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WSTAR Launchpad</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="icon" href="https://woofswap.finance/image/tokens/star.png" type="image/x-icon">
+    <style>
+        :root {
+            --primary-color: #ff9100;
+            --secondary-color: #ff6f61;
+            --gradient-bg: linear-gradient(180deg, #1e1e2f 0%, #2a2a3d 100%);
+            --card-bg: #2c2f48;
+            --input-bg: #373b5c;
+            --text-color: #ffffff;
+            --border-radius: 15px;
+        }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: var(--gradient-bg);
+            color: var(--text-color);
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .container {
+            width: 100%;
+            max-width: 480px;
+            background: var(--card-bg);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            border-radius: var(--border-radius);
+            padding: 20px;
+        }
+        .header {
+            background: linear-gradient(90deg, var(--secondary-color) 0%, var(--primary-color) 100%);
+            padding: 12px;
+            border-radius: var(--border-radius);
+            text-align: center;
+            font-size: 1.3em;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+        .connect-section button {
+            padding: 12px;
+            background: var(--primary-color);
+            color: var(--text-color);
+            border: none;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            font-weight: bold;
+            width: 100%;
+            transition: background 0.2s;
+            margin-bottom: 10px;
+        }
+        .connect-section button:hover { background: #e68a00; }
+        .input-box {
+            background: var(--input-bg);
+            padding: 15px;
+            border-radius: var(--border-radius);
+            margin-bottom: 15px;
+        }
+        .input-box label {
+            display: block;
+            font-size: 0.9em;
+            margin-bottom: 5px;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            background: var(--input-bg);
+            border: none;
+            border-radius: 10px;
+            color: var(--text-color);
+            font-size: 1em;
+        }
+        .balance-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9em;
+            margin-bottom: 5px;
+            color: #ff9100;
+        }
+        .percentage-buttons {
+            display: flex;
+            gap: 5px;
+            margin-top: 10px;
+            margin-bottom: 10px;
+        }
+        .percentage-button {
+            padding: 5px 10px;
+            background: #4a4f7a;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            color: var(--text-color);
+            flex: 1;
+            text-align: center;
+            transition: background 0.2s;
+        }
+        .percentage-button:hover { background: #5a5f8a; }
+        .action-button {
+            padding: 15px;
+            background: var(--primary-color);
+            color: var(--text-color);
+            border: none;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            font-weight: bold;
+            width: 100%;
+            transition: background 0.2s;
+            margin-bottom: 10px;
+            position: relative;
+        }
+        .action-button:disabled {
+            background: #4a4f7a;
+            cursor: not-allowed;
+        }
+        .action-button:hover:not(:disabled) { background: #e68a00; }
+        .status {
+            margin-top: 10px;
+            font-size: 0.9em;
+            color: var(--primary-color);
+            text-align: center;
+        }
+        .token-info {
+            background: var(--input-bg);
+            padding: 15px;
+            border-radius: var(--border-radius);
+            margin-bottom: 15px;
+        }
+        .token-info p {
+            font-size: 0.9em;
+            margin-bottom: 5px;
+            word-break: break-all;
+        }
+        .copyable-address {
+            cursor: pointer;
+            color: #ff9100;
+            text-decoration: underline;
+        }
+        .copyable-address:hover {
+            color: #e68a00;
+        }
+        .dog-section {
+            text-align: center;
+            margin-top: 20px;
+        }
+        .dog-section img {
+            width: 60px;
+            height: 60px;
+            margin-bottom: 10px;
+        }
+        .dog-message {
+            font-size: 0.9em;
+            color: var(--secondary-color);
+            font-style: italic;
+        }
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #fff;
+            border-top: 2px solid var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 5px;
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        @media (max-width: 480px) {
+            body { padding: 10px; }
+            .container { padding: 15px; }
+            .header { font-size: 1.1em; }
+            .percentage-button { font-size: 0.7em; padding: 6px; }
+            .dog-section img { width: 50px; height: 50px; }
+            .dog-message { font-size: 0.8em; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">WSTAR Launchpad</div>
+        <div class="connect-section">
+            <button id="connectWalletButton">Connect Wallet</button>
+            <div id="networkStatus" class="status">Click to connect...</div>
+        </div>
+        <div class="input-box">
+            <label>Balances</label>
+            <div class="balance-row"><span>STAR</span><span id="starBalance">Balance: 0</span></div>
+            <div class="balance-row"><span>WSTAR</span><span id="wstarBalance">Balance: 0</span></div>
+       <<<<<<<
+
+        </div>
+        <div class="input-box">
+            <label>Deposit WSTAR</label>
+            <input type="number" id="depositAmount" placeholder="Amount of WSTAR" min="0" step="any">
+            <div class="percentage-buttons">
+                <button class="percentage-button" onclick="setDepositPercentage(0.25)">25%</button>
+                <button class="percentage-button" onclick="setDepositPercentage(0.5)">50%</button>
+                <button class="percentage-button" onclick="setDepositPercentage(0.75)">75%</button>
+                <button class="percentage-button" onclick="setDepositPercentage(1)">Max</button>
+            </div>
+            <button class="action-button" id="depositButton">Deposit</button>
+        </div>
+        <div class="input-box">
+            <label>Deploy Meme Coin</label>
+            <input type="text" id="memeCoinName" placeholder="Token Name (e.g., DogeCoin)">
+            <input type="text" id="memeCoinSymbol" placeholder="Token Symbol (e.g., DOGE)">
+            <button class="action-button" id="deployMemeCoinButton">Deploy Meme Coin</button>
+        </div>
+        <div class="input-box">
+            <label>Add Liquidity</label>
+            <input type="text" id="memeCoinAddress" placeholder="Meme Coin Address">
+            <div class="token-info">
+                <p>Deployment Tips: 100,000 WSTAR, 1,000,000,000 MEME COIN</p>
+            </div>
+            <button class="action-button" id="addLiquidityButton" disabled>Add Liquidity</button>
+        </div>
+        <div class="input-box">
+            <label>Recent Meme Coins (Up to 20)</label>
+            <div class="token-info" id="recentMemeCoins">
+                <p>No meme coins deployed yet.</p>
+            </div>
+        </div>
+        <div class="dog-section">
+            <img src="https://woofswap.finance/image/tokens/star.png" alt="WSTAR">
+            <div class="dog-message" id="dogMessage">"Woof! Connect your wallet to manage tokens, pup!"</div>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/web3@1.7.0/dist/web3.min.js"></script>
+    <script>
+        const WSTARlaunchpadAddress = '0xD19C34A3543c68D9C3582a8F3AD91B42b7B718eC';
+        const STARAddress = '0x552473D6B6b72092aaecd8c4290b91a4Db89e7f6';
+        const WSTARAddress = '0x9a8e42210E3EAaf866eD599cE9E630A7422d90cD';
+
+        const WSTARlaunchpadAbi = [
+            {
+                "inputs": [],
+                "stateMutability": "nonpayable",
+                "type": "constructor"
+            },
+            {
+                "anonymous": false,
+                "inputs": [
+                    {"indexed": true, "internalType": "address", "name": "user", "type": "address"},
+                    {"indexed": true, "internalType": "address", "name": "memeCoin", "type": "address"},
+                    {"indexed": false, "internalType": "string", "name": "name", "type": "string"},
+                    {"indexed": false, "internalType": "string", "name": "symbol", "type": "string"}
+                ],
+                "name": "MemeCoinDeployed",
+                "type": "event"
+            },
+            {
+                "anonymous": false,
+                "inputs": [
+                    {"indexed": true, "internalType": "address", "name": "user", "type": "address"},
+                    {"indexed": true, "internalType": "address", "name": "pair", "type": "address"},
+                    {"indexed": false, "internalType": "uint256", "name": "amount", "type": "uint256"}
+                ],
+                "name": "LiquidityAdded",
+                "type": "event"
+            },
+            {
+                "inputs": [
+                    {"internalType": "address", "name": "memeCoinAddress", "type": "address"}
+                ],
+                "name": "addLiquidity",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {"internalType": "string", "name": "_name", "type": "string"},
+                    {"internalType": "string", "name": "_symbol", "type": "string"}
+                ],
+                "name": "deployMemeCoin",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {"internalType": "uint256", "name": "_amount", "type": "uint256"}
+                ],
+                "name": "depositWSTAR",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {"internalType": "address", "name": "user", "type": "address"}
+                ],
+                "name": "getRecentMemeCoins",
+                "outputs": [
+                    {
+                        "components": [
+                            {"internalType": "address", "name": "memeCoin", "type": "address"},
+                            {"internalType": "string", "name": "name", "type": "string"},
+                            {"internalType": "string", "name": "symbol", "type": "string"},
+                            {"internalType": "uint256", "name": "deployTime", "type": "uint256"},
+                            {"internalType": "address", "name": "pair", "type": "address"},
+                            {"internalType": "uint256", "name": "liquidity", "type": "uint256"}
+                        ],
+                        "internalType": "struct WSTARlaunchpad.MemeCoinInfo[]",
+                        "name": "",
+                        "type": "tuple[]"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {"internalType": "address", "name": "memeCoinAddress", "type": "address"}
+                ],
+                "name": "hasLiquidityAdded",
+                "outputs": [
+                    {"internalType": "bool", "name": "", "type": "bool"}
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {"internalType": "address", "name": "", "type": "address"}
+                ],
+                "name": "isMemeCoin",
+                "outputs": [
+                    {"internalType": "bool", "name": "", "type": "bool"}
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {"internalType": "address", "name": "", "type": "address"}
+                ],
+                "name": "userMemeCoins",
+                "outputs": [
+                    {"internalType": "address", "name": "memeCoin", "type": "address"},
+                    {"internalType": "string", "name": "name", "type": "string"},
+                    {"internalType": "string", "name": "symbol", "type": "string"},
+                    {"internalType": "uint256", "name": "deployTime", "type": "uint256"},
+                    {"internalType": "address", "name": "pair", "type": "address"},
+                    {"internalType": "uint256", "name": "liquidity", "type": "uint256"}
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            }
+        ];
+
+        const erc20Abi = [
+            {
+                "constant": true,
+                "inputs": [{"name": "_owner", "type": "address"}],
+                "name": "balanceOf",
+                "outputs": [{"name": "balance", "type": "uint256"}],
+                "type": "function"
+            },
+            {
+                "constant": false,
+                "inputs": [
+                    {"name": "_spender", "type": "address"},
+                    {"name": "_value", "type": "uint256"}
+                ],
+                "name": "approve",
+                "outputs": [{"name": "success", "type": "bool"}],
+                "type": "function"
+            },
+            {
+                "constant": true,
+                "inputs": [
+                    {"name": "_owner", "type": "address"},
+                    {"name": "_spender", "type": "address"}
+                ],
+                "name": "allowance",
+                "outputs": [{"name": "remaining", "type": "uint256"}],
+                "type": "function"
+            },
+            {
+                "constant": false,
+                "inputs": [
+                    {"name": "recipient", "type": "address"},
+                    {"name": "amount", "type": "uint256"}
+                ],
+                "name": "transfer",
+                "outputs": [{"name": "success", "type": "bool"}],
+                "type": "function"
+            },
+            {
+                "constant": false,
+                "inputs": [
+                    {"name": "sender", "type": "address"},
+                    {"name": "recipient", "type": "address"},
+                    {"name": "amount", "type": "uint256"}
+                ],
+                "name": "transferFrom",
+                "outputs": [{"name": "success", "type": "bool"}],
+                "type": "function"
+            }
+        ];
+
+        const XLayer = {
+            chainId: 196,
+            chainName: 'X Layer mainnet',
+            nativeCurrency: { name: 'OKB', symbol: 'OKB', decimals: 18 },
+            rpcUrls: ['https://rpc.xlayer.tech'],
+            blockExplorerUrls: ['https://www.okx.com/web3/explorer/xlayer']
+        };
+
+        let web3, account, wstarLaunchpadContract, starContract, wstarContract;
+        let hasApprovedWSTAR = false;
+
+        const dogMessages = {
+            connectStart: ["Woof woof! Sniffing out your wallet, hold tight, human!", "Arf! Digging into X Layer, let’s fetch that wallet!", "Bow wow! Connecting to your stash, stay pawsitive!", "Woof! I smell a wallet, let’s link it up quick!"],
+            connectSuccess: ["Arf arf! You’re in, pup! Time to launch some tokens!", "Woof! Wallet’s hooked, ready to roll in X Layer!", "Yip yip! Connected, hooman! Let’s create some meme coins!", "Bow wow! Welcome aboard, let’s launch some stars!"],
+            connectFail: ["Grrr... Wallet slipped away, try again, hooman!", "Woof? No wallet scent detected, give it another go!", "Arf arf! Something barked up, retry connecting, pup!", "Ruff! Wallet’s hiding, let’s dig it out again!"],
+            depositStart: ["Woof! Depositing WSTAR, hold tight, pup!", "Arf! Stashing your tokens now!", "Bark! Deposit in progress!"],
+            depositSuccess: ["Woof! WSTAR deposited, ready to launch, pup!", "Arf! Tokens stashed successfully!", "Bark! Success! WSTAR in the vault!"],
+            depositFail: ["Woof! Deposit failed, check balance, pup!", "Arf! Something went wrong, try again!", "Bark! Deposit hit a snag, retry!"],
+            deployStart: ["Woof! Deploying your meme coin, hold tight, pup!", "Arf! Creating your token now!", "Bark! Deployment in progress!"],
+            deploySuccess: ["Woof! Meme coin deployed, you’re a star, pup!", "Arf! Your token is live!", "Bark! Success! Meme coin created!"],
+            deployFail: ["Woof! Deployment failed, check details, pup!", "Arf! Something went wrong, try again!", "Bark! Deployment hit a snag, retry!"],
+            liquidityStart: ["Woof! Adding liquidity, hold tight, pup!", "Arf! Setting up the pool now!", "Bark! Liquidity in progress!"],
+            liquiditySuccess: ["Woof! Liquidity added, trading enabled, pup!", "Arf! Pool is live!", "Bark! Success! Liquidity added!"],
+            liquidityFail: ["Woof! Liquidity addition failed, check tokens, pup!", "Arf! Something went wrong, try again!", "Bark! Liquidity hit a snag, retry!"],
+            invalidInput: ["Woof! Invalid input, check details, pup!", "Arf! Something’s not right, check your inputs!", "Bark! Need valid details to proceed!"],
+            userDenied: ["Woof! You canceled the transaction, pup!", "Arf! Transaction denied, try again when ready!", "Bark! You said no, let’s try that again!"],
+            copySuccess: ["Woof! Address copied to clipboard, pup!", "Arf! Copied, you’re good to go!", "Bark! Address copied successfully!"],
+            copyFail: ["Woof! Failed to copy address, try again, pup!", "Arf! Copy failed, give it another go!", "Bark! Couldn’t copy, check your browser!"],
+            liquidityExists: ["Woof! Liquidity already added for this coin, pup!", "Arf! Pool exists, pick another coin!", "Bark! This coin already has liquidity!"]
+        };
+
+        function getRandomMessage(type) {
+            const messages = dogMessages[type];
+            return messages[Math.floor(Math.random() * messages.length)];
+        }
+
+        async function copyToClipboard(address) {
+            try {
+                await navigator.clipboard.writeText(address);
+                document.getElementById('dogMessage').innerText = getRandomMessage('copySuccess');
+            } catch (error) {
+                document.getElementById('dogMessage').innerText = getRandomMessage('copyFail');
+            }
+        }
+
+        async function initializeWeb3() {
+            const status = document.getElementById('networkStatus');
+            const connectButton = document.getElementById('connectWalletButton');
+            const dogMessage = document.getElementById('dogMessage');
+            try {
+                if (!window.ethereum) {
+                    status.innerText = "Please install MetaMask";
+                    dogMessage.innerText = "Woof! MetaMask not found, pup!";
+                    return;
+                }
+                dogMessage.innerText = getRandomMessage('connectStart');
+                connectButton.disabled = true;
+                web3 = new Web3(window.ethereum);
+                const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                account = accounts[0];
+                await switchNetwork();
+                wstarLaunchpadContract = new web3.eth.Contract(WSTARlaunchpadAbi, WSTARlaunchpadAddress);
+                starContract = new web3.eth.Contract(erc20Abi, STARAddress);
+                wstarContract = new web3.eth.Contract(erc20Abi, WSTARAddress);
+                await updateBalances();
+                await updateRecentMemeCoins();
+                connectButton.innerText = `Connected: ${account.slice(0, 6)}...${account.slice(-4)}`;
+                status.innerText = "Connected to X Layer";
+                dogMessage.innerText = getRandomMessage('connectSuccess');
+            } catch (error) {
+                console.error("Connection error:", error);
+                status.innerText = "Failed to connect wallet";
+                dogMessage.innerText = getRandomMessage('connectFail');
+            } finally {
+                connectButton.disabled = false;
+            }
+        }
+
+        async function switchNetwork() {
+            try {
+                await window.ethereum.request({
+                    method: 'wallet_switchEthereumChain',
+                    params: [{ chainId: `0x${XLayer.chainId.toString(16)}` }]
+                });
+            } catch (switchError) {
+                if (switchError.code === 4902) {
+                    await window.ethereum.request({
+                        method: 'wallet_addEthereumChain',
+                        params: [{
+                            chainId: `0x${XLayer.chainId.toString(16)}`,
+                            chainName: XLayer.chainName,
+                            rpcUrls: XLayer.rpcUrls,
+                            nativeCurrency: XLayer.nativeCurrency,
+                            blockExplorerUrls: XLayer.blockExplorerUrls
+                        }]
+                    });
+                } else {
+                    throw switchError;
+                }
+            }
+        }
+
+        async function updateBalances() {
+            if (!web3 || !account) return;
+            try {
+                const starBalance = await starContract.methods.balanceOf(account).call();
+                const wstarBalance = await wstarContract.methods.balanceOf(account).call();
+                document.getElementById('starBalance').innerText = `Balance: ${Number(web3.utils.fromWei(starBalance, 'ether')).toLocaleString()}`;
+                document.getElementById('wstarBalance').innerText = `Balance: ${Number(web3.utils.fromWei(wstarBalance, 'ether')).toLocaleString()}`;
+            } catch (error) {
+                console.error("Balance update error:", error);
+                document.getElementById('starBalance').innerText = 'Balance: Error';
+                document.getElementById('wstarBalance').innerText = 'Balance: Error';
+            }
+        }
+
+        async function updateRecentMemeCoins() {
+            if (!web3 || !account) return;
+            try {
+                const memeCoins = await wstarLaunchpadContract.methods.getRecentMemeCoins(account).call();
+                const container = document.getElementById('recentMemeCoins');
+                container.innerHTML = '';
+                if (memeCoins.length === 0) {
+                    container.innerHTML = '<p>No meme coins deployed yet.</p>';
+                } else {
+                    memeCoins.forEach(coin => {
+                        const liquidityStatus = coin.pair === '0x0000000000000000000000000000000000000000' ? 'No liquidity' : 'Liquidity added';
+                        const p = document.createElement('p');
+                        p.innerHTML = `${coin.name} (${coin.symbol}): <span class="copyable-address" onclick="copyToClipboard('${coin.memeCoin}')">${coin.memeCoin}</span> - ${liquidityStatus}`;
+                        container.appendChild(p);
+                    });
+                }
+            } catch (error) {
+                console.error("Recent meme coins error:", error);
+                document.getElementById('recentMemeCoins').innerHTML = '<p>Error fetching meme coins.</p>';
+            }
+        }
+
+        async function waitForTransaction(txHash) {
+            let receipt = null;
+            const maxAttempts = 30;
+            let attempts = 0;
+            while (attempts < maxAttempts) {
+                receipt = await web3.eth.getTransactionReceipt(txHash);
+                if (receipt) {
+                    if (receipt.status) return receipt;
+                    throw new Error(`Transaction ${txHash} failed`);
+                }
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                attempts++;
+            }
+            throw new Error(`Transaction ${txHash} not confirmed after ${maxAttempts} attempts`);
+        }
+
+        async function setDepositPercentage(percentage) {
+            if (!web3 || !account) return;
+            try {
+                const balance = await starContract.methods.balanceOf(account).call();
+                const balanceEther = Number(web3.utils.fromWei(balance, 'ether'));
+                let amount;
+                if (percentage === 1) {
+                    amount = balanceEther - 0.0001;
+                } else {
+                    amount = balanceEther * percentage;
+                }
+                if (amount <= 0) amount = 0;
+                document.getElementById('depositAmount').value = amount.toFixed(8);
+            } catch (error) {
+                console.error("Set deposit percentage error:", error);
+                document.getElementById('dogMessage').innerText = getRandomMessage('depositFail');
+            }
+        }
+
+        async function depositWSTAR() {
+            const status = document.getElementById('networkStatus');
+            const depositButton = document.getElementById('depositButton');
+            const dogMessage = document.getElementById('dogMessage');
+            const amount = document.getElementById('depositAmount').value.trim();
+
+            if (!web3 || !account) {
+                status.innerText = "Please connect wallet first.";
+                dogMessage.innerText = getRandomMessage('connectFail');
+                return;
+            }
+
+            if (!amount || parseFloat(amount) <= 0) {
+                status.innerText = "Please enter a valid amount.";
+                dogMessage.innerText = getRandomMessage('invalidInput');
+                return;
+            }
+
+            try {
+                depositButton.disabled = true;
+                depositButton.innerHTML = 'Depositing... <span class="spinner"></span>';
+                status.innerText = "Depositing WSTAR...";
+                dogMessage.innerText = getRandomMessage('depositStart');
+
+                const amountWei = web3.utils.toWei(amount, 'ether');
+                const starBalance = await starContract.methods.balanceOf(account).call();
+                if (web3.utils.toBN(starBalance).lt(web3.utils.toBN(amountWei))) {
+                    status.innerText = "Insufficient STAR balance.";
+                    dogMessage.innerText = "Woof! Not enough STAR, pup!";
+                    return;
+                }
+
+                if (!hasApprovedWSTAR) {
+                    status.innerText = "Approving STAR...";
+                    const maxUint256 = '115792089237316195423570985008687907853269984665640564039457584007913129639935';
+                    const txApprove = await starContract.methods.approve(WSTARlaunchpadAddress, maxUint256).send({
+                        from: account,
+                        gas: web3.utils.toHex(100000)
+                    });
+                    await waitForTransaction(txApprove.transactionHash);
+                    hasApprovedWSTAR = true;
+                }
+
+                const tx = await wstarLaunchpadContract.methods.depositWSTAR(amountWei).send({
+                    from: account,
+                    gas: web3.utils.toHex(200000)
+                });
+                await waitForTransaction(tx.transactionHash);
+
+                status.innerText = "Deposit successful!";
+                dogMessage.innerText = getRandomMessage('depositSuccess');
+                await updateBalances();
+            } catch (error) {
+                console.error("Deposit error:", error);
+                if (error.code === 4001) {
+                    status.innerText = "Transaction canceled by user.";
+                    dogMessage.innerText = getRandomMessage('userDenied');
+                } else {
+                    status.innerText = "Deposit failed.";
+                    dogMessage.innerText = getRandomMessage('depositFail');
+                }
+            } finally {
+                depositButton.disabled = false;
+                depositButton.innerHTML = 'Deposit';
+            }
+        }
+
+        async function deployMemeCoin() {
+            const status = document.getElementById('networkStatus');
+            const deployButton = document.getElementById('deployMemeCoinButton');
+            const dogMessage = document.getElementById('dogMessage');
+            const name = document.getElementById('memeCoinName').value.trim();
+            const symbol = document.getElementById('memeCoinSymbol').value.trim();
+
+            if (!web3 || !account) {
+                status.innerText = "Please connect wallet first.";
+                dogMessage.innerText = getRandomMessage('connectFail');
+                return;
+            }
+
+            if (!name || !symbol) {
+                status.innerText = "Please enter valid token name and symbol.";
+                dogMessage.innerText = getRandomMessage('invalidInput');
+                return;
+            }
+
+            try {
+                deployButton.disabled = true;
+                deployButton.innerHTML = 'Deploying... <span class="spinner"></span>';
+                status.innerText = "Deploying meme coin...";
+                dogMessage.innerText = getRandomMessage('deployStart');
+
+                const tx = await wstarLaunchpadContract.methods.deployMemeCoin(name, symbol).send({
+                    from: account,
+                    gas: web3.utils.toHex(3000000)
+                });
+                await waitForTransaction(tx.transactionHash);
+
+                status.innerText = "Meme coin deployed successfully!";
+                dogMessage.innerText = getRandomMessage('deploySuccess');
+                await updateRecentMemeCoins();
+            } catch (error) {
+                console.error("Deploy error:", error);
+                if (error.code === 4001) {
+                    status.innerText = "Transaction canceled by user.";
+                    dogMessage.innerText = getRandomMessage('userDenied');
+                } else {
+                    status.innerText = "Deployment failed.";
+                    dogMessage.innerText = getRandomMessage('deployFail');
+                }
+            } finally {
+                deployButton.disabled = false;
+                deployButton.innerHTML = 'Deploy Meme Coin';
+            }
+        }
+
+        async function checkLiquidityStatus() {
+            const memeCoinAddress = document.getElementById('memeCoinAddress').value.trim();
+            const liquidityButton = document.getElementById('addLiquidityButton');
+            const status = document.getElementById('networkStatus');
+            const dogMessage = document.getElementById('dogMessage');
+
+            liquidityButton.disabled = true;
+
+            if (!web3 || !account) {
+                status.innerText = "Please connect wallet first.";
+                dogMessage.innerText = getRandomMessage('connectFail');
+                return;
+            }
+
+            if (!memeCoinAddress || !web3.utils.isAddress(memeCoinAddress)) {
+                status.innerText = "Please enter a valid meme coin address.";
+                dogMessage.innerText = getRandomMessage('invalidInput');
+                return;
+            }
+
+            try {
+                const hasLiquidity = await wstarLaunchpadContract.methods.hasLiquidityAdded(memeCoinAddress).call();
+                if (hasLiquidity) {
+                    liquidityButton.disabled = true;
+                    status.innerText = "Liquidity already added for this coin.";
+                    dogMessage.innerText = getRandomMessage('liquidityExists');
+                } else {
+                    const isMemeCoin = await wstarLaunchpadContract.methods.isMemeCoin(memeCoinAddress).call();
+                    if (!isMemeCoin) {
+                        status.innerText = "This is not a valid meme coin.";
+                        dogMessage.innerText = getRandomMessage('invalidInput');
+                    } else {
+                        liquidityButton.disabled = false;
+                        status.innerText = "Ready to add liquidity.";
+                        dogMessage.innerText = "Woof! Ready to add liquidity, pup!";
+                    }
+                }
+            } catch (error) {
+                console.error("Liquidity status error:", error);
+                status.innerText = "Error checking liquidity status.";
+                dogMessage.innerText = getRandomMessage('liquidityFail');
+            }
+        }
+
+        async function addLiquidity() {
+            const status = document.getElementById('networkStatus');
+            const liquidityButton = document.getElementById('addLiquidityButton');
+            const dogMessage = document.getElementById('dogMessage');
+            const memeCoinAddress = document.getElementById('memeCoinAddress').value.trim();
+
+            if (!web3 || !account) {
+                status.innerText = "Please connect wallet first.";
+                dogMessage.innerText = getRandomMessage('connectFail');
+                return;
+            }
+
+            if (!web3.utils.isAddress(memeCoinAddress)) {
+                status.innerText = "Please enter a valid meme coin address.";
+                dogMessage.innerText = getRandomMessage('invalidInput');
+                return;
+            }
+
+            try {
+                liquidityButton.disabled = true;
+                liquidityButton.innerHTML = 'Adding... <span class="spinner"></span>';
+                status.innerText = "Adding liquidity...";
+                dogMessage.innerText = getRandomMessage('liquidityStart');
+
+                const memeCoinContract = new web3.eth.Contract(erc20Abi, memeCoinAddress);
+                const memeCoinBalance = await memeCoinContract.methods.balanceOf(account).call();
+                const requiredMemeCoinAmount = web3.utils.toWei('1000000000', 'ether');
+                const wstarBalance = await wstarContract.methods.balanceOf(account).call();
+                const requiredWSTARAmount = web3.utils.toWei('100000', 'ether');
+
+                if (web3.utils.toBN(memeCoinBalance).lt(web3.utils.toBN(requiredMemeCoinAmount))) {
+                    status.innerText = "Insufficient meme coin balance.";
+                    dogMessage.innerText = "Woof! Not enough meme coin tokens, pup!";
+                    return;
+                }
+
+                if (web3.utils.toBN(wstarBalance).lt(web3.utils.toBN(requiredWSTARAmount))) {
+                    status.innerText = "Insufficient WSTAR balance.";
+                    dogMessage.innerText = "Woof! Not enough WSTAR, pup!";
+                    return;
+                }
+
+                const maxUint256 = '115792089237316195423570985008687907853269984665640564039457584007913129639935';
+                const memeCoinAllowance = await memeCoinContract.methods.allowance(account, WSTARlaunchpadAddress).call();
+                if (web3.utils.toBN(memeCoinAllowance).lt(web3.utils.toBN(requiredMemeCoinAmount))) {
+                    status.innerText = "Approving meme coin...";
+                    await memeCoinContract.methods.approve(WSTARlaunchpadAddress, maxUint256).send({
+                        from: account,
+                        gas: web3.utils.toHex(100000)
+                    });
+                }
+
+                const wstarAllowance = await wstarContract.methods.allowance(account, WSTARlaunchpadAddress).call();
+                if (web3.utils.toBN(wstarAllowance).lt(web3.utils.toBN(requiredWSTARAmount))) {
+                    status.innerText = "Approving WSTAR...";
+                    await wstarContract.methods.approve(WSTARlaunchpadAddress, maxUint256).send({
+                        from: account,
+                        gas: web3.utils.toHex(100000)
+                    });
+                }
+
+                const tx = await wstarLaunchpadContract.methods.addLiquidity(memeCoinAddress).send({
+                    from: account,
+                    gas: web3.utils.toHex(5000000)
+                });
+                await waitForTransaction(tx.transactionHash);
+
+                status.innerText = "Liquidity added successfully!";
+                dogMessage.innerText = getRandomMessage('liquiditySuccess');
+                await updateRecentMemeCoins();
+                await updateBalances();
+                await checkLiquidityStatus();
+            } catch (error) {
+                console.error("Liquidity error:", error);
+                if (error.code === 4001) {
+                    status.innerText = "Transaction canceled by user.";
+                    dogMessage.innerText = getRandomMessage('userDenied');
+                } else {
+                    status.innerText = "Liquidity addition failed.";
+                    dogMessage.innerText = getRandomMessage('liquidityFail');
+                }
+            } finally {
+                liquidityButton.disabled = false;
+                liquidityButton.innerHTML = 'Add Liquidity';
+            }
+        }
+
+        document.getElementById('connectWalletButton').addEventListener('click', initializeWeb3);
+        document.getElementById('depositButton').addEventListener('click', depositWSTAR);
+        document.getElementById('deployMemeCoinButton').addEventListener('click', deployMemeCoin);
+        document.getElementById('addLiquidityButton').addEventListener('click', addLiquidity);
+        document.getElementById('memeCoinAddress').addEventListener('input', checkLiquidityStatus);
+    </script>
+</body>
+</html>
