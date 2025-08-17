@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WSTAR Launchpad</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
-    <link rel="icon" href="https://woofswap.finance/image/tokens/star.png" type="image/x-icon">
+    <link rel="shortcut icon" href="https://woofswap.finance/image/tokens/star.png" type="image/x-icon" />
     <style>
         :root {
             --primary-color: #ff9100;
@@ -90,22 +90,23 @@
         }
         .percentage-buttons {
             display: flex;
-            gap: 5px;
+            justify-content: space-between;
             margin-top: 10px;
             margin-bottom: 10px;
         }
         .percentage-button {
-            padding: 5px 10px;
-            background: #4a4f7a;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
+            padding: 8px;
+            background: var(--primary-color);
             color: var(--text-color);
-            flex: 1;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.8em;
+            width: 22%;
             text-align: center;
             transition: background 0.2s;
         }
-        .percentage-button:hover { background: #5a5f8a; }
+        .percentage-button:hover { background: #e68a00; }
         .action-button {
             padding: 15px;
             background: var(--primary-color);
@@ -202,12 +203,10 @@
             <label>Balances</label>
             <div class="balance-row"><span>STAR</span><span id="starBalance">Balance: 0</span></div>
             <div class="balance-row"><span>WSTAR</span><span id="wstarBalance">Balance: 0</span></div>
-       <<<<<<<
-
         </div>
         <div class="input-box">
-            <label>Deposit WSTAR</label>
-            <input type="number" id="depositAmount" placeholder="Amount of WSTAR" min="0" step="any">
+            <label>Deposit STAR for WSTAR</label>
+            <input type="number" id="depositAmount" placeholder="Amount of STAR" min="0" step="any">
             <div class="percentage-buttons">
                 <button class="percentage-button" onclick="setDepositPercentage(0.25)">25%</button>
                 <button class="percentage-button" onclick="setDepositPercentage(0.5)">50%</button>
@@ -215,6 +214,17 @@
                 <button class="percentage-button" onclick="setDepositPercentage(1)">Max</button>
             </div>
             <button class="action-button" id="depositButton">Deposit</button>
+        </div>
+        <div class="input-box">
+            <label>Withdraw WSTAR for STAR</label>
+            <input type="number" id="withdrawAmount" placeholder="Amount of WSTAR" min="0" step="any">
+            <div class="percentage-buttons">
+                <button class="percentage-button" onclick="setWithdrawPercentage(0.25)">25%</button>
+                <button class="percentage-button" onclick="setWithdrawPercentage(0.5)">50%</button>
+                <button class="percentage-button" onclick="setWithdrawPercentage(0.75)">75%</button>
+                <button class="percentage-button" onclick="setWithdrawPercentage(1)">Max</button>
+            </div>
+            <button class="action-button" id="withdrawButton">Withdraw</button>
         </div>
         <div class="input-box">
             <label>Deploy Meme Coin</label>
@@ -365,6 +375,210 @@
             }
         ];
 
+        const wrappedWSTARAbi = [
+            {
+                "inputs": [
+                    {"internalType": "address", "name": "_starToken", "type": "address"}
+                ],
+                "stateMutability": "nonpayable",
+                "type": "constructor"
+            },
+            {
+                "anonymous": false,
+                "inputs": [
+                    {"indexed": true, "internalType": "address", "name": "src", "type": "address"},
+                    {"indexed": true, "internalType": "address", "name": "guy", "type": "address"},
+                    {"indexed": false, "internalType": "uint256", "name": "wad", "type": "uint256"}
+                ],
+                "name": "Approval",
+                "type": "event"
+            },
+            {
+                "anonymous": false,
+                "inputs": [
+                    {"indexed": true, "internalType": "address", "name": "dst", "type": "address"},
+                    {"indexed": false, "internalType": "uint256", "name": "wad", "type": "uint256"}
+                ],
+                "name": "Deposit",
+                "type": "event"
+            },
+            {
+                "anonymous": false,
+                "inputs": [
+                    {"indexed": true, "internalType": "address", "name": "src", "type": "address"},
+                    {"indexed": true, "internalType": "address", "name": "dst", "type": "address"},
+                    {"indexed": false, "internalType": "uint256", "name": "wad", "type": "uint256"}
+                ],
+                "name": "Transfer",
+                "type": "event"
+            },
+            {
+                "anonymous": false,
+                "inputs": [
+                    {"indexed": true, "internalType": "address", "name": "src", "type": "address"},
+                    {"indexed": false, "internalType": "uint256", "name": "wad", "type": "uint256"}
+                ],
+                "name": "Withdrawal",
+                "type": "event"
+            },
+            {
+                "inputs": [
+                    {"internalType": "address", "name": "", "type": "address"},
+                    {"internalType": "address", "name": "", "type": "address"}
+                ],
+                "name": "allowance",
+                "outputs": [
+                    {"internalType": "uint256", "name": "", "type": "uint256"}
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {"internalType": "address", "name": "guy", "type": "address"},
+                    {"internalType": "uint256", "name": "wad", "type": "uint256"}
+                ],
+                "name": "approve",
+                "outputs": [
+                    {"internalType": "bool", "name": "", "type": "bool"}
+                ],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {"internalType": "address", "name": "", "type": "address"}
+                ],
+                "name": "balanceOf",
+                "outputs": [
+                    {"internalType": "uint256", "name": "", "type": "uint256"}
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "decimals",
+                "outputs": [
+                    {"internalType": "uint8", "name": "", "type": "uint8"}
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {"internalType": "uint256", "name": "wad", "type": "uint256"}
+                ],
+                "name": "deposit",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {"internalType": "address", "name": "guy", "type": "address"},
+                    {"internalType": "uint256", "name": "addedValue", "type": "uint256"}
+                ],
+                "name": "increaseAllowance",
+                "outputs": [
+                    {"internalType": "bool", "name": "", "type": "bool"}
+                ],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {"internalType": "address", "name": "guy", "type": "address"},
+                    {"internalType": "uint256", "name": "subtractedValue", "type": "uint256"}
+                ],
+                "name": "decreaseAllowance",
+                "outputs": [
+                    {"internalType": "bool", "name": "", "type": "bool"}
+                ],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "name",
+                "outputs": [
+                    {"internalType": "string", "name": "", "type": "string"}
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "owner",
+                "outputs": [
+                    {"internalType": "address", "name": "", "type": "address"}
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "symbol",
+                "outputs": [
+                    {"internalType": "string", "name": "", "type": "string"}
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "totalSupply",
+                "outputs": [
+                    {"internalType": "uint256", "name": "", "type": "uint256"}
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {"internalType": "address", "name": "dst", "type": "address"},
+                    {"internalType": "uint256", "name": "wad", "type": "uint256"}
+                ],
+                "name": "transfer",
+                "outputs": [
+                    {"internalType": "bool", "name": "", "type": "bool"}
+                ],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {"internalType": "address", "name": "src", "type": "address"},
+                    {"internalType": "address", "name": "dst", "type": "address"},
+                    {"internalType": "uint256", "name": "wad", "type": "uint256"}
+                ],
+                "name": "transferFrom",
+                "outputs": [
+                    {"internalType": "bool", "name": "", "type": "bool"}
+                ],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {"internalType": "uint256", "name": "wad", "type": "uint256"}
+                ],
+                "name": "withdraw",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "starToken",
+                "outputs": [
+                    {"internalType": "contract IERC20", "name": "", "type": "address"}
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            }
+        ];
+
         const erc20Abi = [
             {
                 "constant": true,
@@ -416,34 +630,38 @@
             }
         ];
 
-        const XLayer = {
-            chainId: 196,
-            chainName: 'X Layer mainnet',
-            nativeCurrency: { name: 'OKB', symbol: 'OKB', decimals: 18 },
-            rpcUrls: ['https://rpc.xlayer.tech'],
-            blockExplorerUrls: ['https://www.okx.com/web3/explorer/xlayer']
+        const chains = {
+            XLayer: {
+                chainId: 196,
+                chainName: 'X Layer mainnet',
+                rpcUrl: 'https://rpc.xlayer.tech',
+                blockExplorer: 'https://www.okx.com/web3/explorer/xlayer',
+                nativeCurrency: { name: 'OKB', symbol: 'OKB', decimals: 18 }
+            }
         };
 
         let web3, account, wstarLaunchpadContract, starContract, wstarContract;
-        let hasApprovedWSTAR = false;
+        let hasApprovedSTAR = false;
 
         const dogMessages = {
-            connectStart: ["Woof woof! Sniffing out your wallet, hold tight, human!", "Arf! Digging into X Layer, let’s fetch that wallet!", "Bow wow! Connecting to your stash, stay pawsitive!", "Woof! I smell a wallet, let’s link it up quick!"],
-            connectSuccess: ["Arf arf! You’re in, pup! Time to launch some tokens!", "Woof! Wallet’s hooked, ready to roll in X Layer!", "Yip yip! Connected, hooman! Let’s create some meme coins!", "Bow wow! Welcome aboard, let’s launch some stars!"],
-            connectFail: ["Grrr... Wallet slipped away, try again, hooman!", "Woof? No wallet scent detected, give it another go!", "Arf arf! Something barked up, retry connecting, pup!", "Ruff! Wallet’s hiding, let’s dig it out again!"],
-            depositStart: ["Woof! Depositing WSTAR, hold tight, pup!", "Arf! Stashing your tokens now!", "Bark! Deposit in progress!"],
-            depositSuccess: ["Woof! WSTAR deposited, ready to launch, pup!", "Arf! Tokens stashed successfully!", "Bark! Success! WSTAR in the vault!"],
+            connectSuccess: ["Woof! Wallet connected, ready to manage tokens, pup!", "Arf! You're in, let's roll!", "Bark! Wallet's ready, time to play!"],
+            connectFail: ["Woof! Couldn't connect wallet, try again, pup!", "Arf! Wallet connection failed, give it another go!", "Bark! Something went wrong, check your wallet!"],
+            depositStart: ["Woof! Depositing STAR, hold tight, pup!", "Arf! Wrapping your tokens now!", "Bark! Deposit in progress!"],
+            depositSuccess: ["Woof! STAR deposited, WSTAR received, pup!", "Arf! Tokens wrapped successfully!", "Bark! Success! WSTAR in your wallet!"],
             depositFail: ["Woof! Deposit failed, check balance, pup!", "Arf! Something went wrong, try again!", "Bark! Deposit hit a snag, retry!"],
+            withdrawStart: ["Woof! Withdrawing WSTAR, hold tight, pup!", "Arf! Unwrapping your tokens now!", "Bark! Withdrawal in progress!"],
+            withdrawSuccess: ["Woof! WSTAR withdrawn, STAR received, pup!", "Arf! Tokens unwrapped successfully!", "Bark! Success! STAR in your wallet!"],
+            withdrawFail: ["Woof! Withdrawal failed, check balance, pup!", "Arf! Something went wrong, try again!", "Bark! Withdrawal hit a snag, retry!"],
             deployStart: ["Woof! Deploying your meme coin, hold tight, pup!", "Arf! Creating your token now!", "Bark! Deployment in progress!"],
-            deploySuccess: ["Woof! Meme coin deployed, you’re a star, pup!", "Arf! Your token is live!", "Bark! Success! Meme coin created!"],
+            deploySuccess: ["Woof! Meme coin deployed, you're rolling, pup!", "Arf! Your token is live!", "Bark! Success! Meme coin created!"],
             deployFail: ["Woof! Deployment failed, check details, pup!", "Arf! Something went wrong, try again!", "Bark! Deployment hit a snag, retry!"],
             liquidityStart: ["Woof! Adding liquidity, hold tight, pup!", "Arf! Setting up the pool now!", "Bark! Liquidity in progress!"],
             liquiditySuccess: ["Woof! Liquidity added, trading enabled, pup!", "Arf! Pool is live!", "Bark! Success! Liquidity added!"],
             liquidityFail: ["Woof! Liquidity addition failed, check tokens, pup!", "Arf! Something went wrong, try again!", "Bark! Liquidity hit a snag, retry!"],
-            invalidInput: ["Woof! Invalid input, check details, pup!", "Arf! Something’s not right, check your inputs!", "Bark! Need valid details to proceed!"],
-            userDenied: ["Woof! You canceled the transaction, pup!", "Arf! Transaction denied, try again when ready!", "Bark! You said no, let’s try that again!"],
-            copySuccess: ["Woof! Address copied to clipboard, pup!", "Arf! Copied, you’re good to go!", "Bark! Address copied successfully!"],
-            copyFail: ["Woof! Failed to copy address, try again, pup!", "Arf! Copy failed, give it another go!", "Bark! Couldn’t copy, check your browser!"],
+            invalidInput: ["Woof! Invalid input, check details, pup!", "Arf! Something's not right, check your inputs!", "Bark! Need valid details to proceed!"],
+            userDenied: ["Woof! You canceled the transaction, pup!", "Arf! Transaction denied, try again when ready!", "Bark! You said no, let's try that again!"],
+            copySuccess: ["Woof! Address copied to clipboard, pup!", "Arf! Copied, you're good to go!", "Bark! Address copied successfully!"],
+            copyFail: ["Woof! Failed to copy address, try again, pup!", "Arf! Copy failed, give it another go!", "Bark! Couldn't copy, check your browser!"],
             liquidityExists: ["Woof! Liquidity already added for this coin, pup!", "Arf! Pool exists, pick another coin!", "Bark! This coin already has liquidity!"]
         };
 
@@ -462,60 +680,58 @@
         }
 
         async function initializeWeb3() {
-            const status = document.getElementById('networkStatus');
-            const connectButton = document.getElementById('connectWalletButton');
-            const dogMessage = document.getElementById('dogMessage');
-            try {
-                if (!window.ethereum) {
-                    status.innerText = "Please install MetaMask";
-                    dogMessage.innerText = "Woof! MetaMask not found, pup!";
-                    return;
-                }
-                dogMessage.innerText = getRandomMessage('connectStart');
-                connectButton.disabled = true;
+            if (window.ethereum) {
                 web3 = new Web3(window.ethereum);
-                const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-                account = accounts[0];
-                await switchNetwork();
-                wstarLaunchpadContract = new web3.eth.Contract(WSTARlaunchpadAbi, WSTARlaunchpadAddress);
-                starContract = new web3.eth.Contract(erc20Abi, STARAddress);
-                wstarContract = new web3.eth.Contract(erc20Abi, WSTARAddress);
-                await updateBalances();
-                await updateRecentMemeCoins();
-                connectButton.innerText = `Connected: ${account.slice(0, 6)}...${account.slice(-4)}`;
-                status.innerText = "Connected to X Layer";
-                dogMessage.innerText = getRandomMessage('connectSuccess');
-            } catch (error) {
-                console.error("Connection error:", error);
-                status.innerText = "Failed to connect wallet";
-                dogMessage.innerText = getRandomMessage('connectFail');
-            } finally {
-                connectButton.disabled = false;
+                try {
+                    await window.ethereum.request({ method: 'eth_requestAccounts' });
+                    account = (await web3.eth.getAccounts())[0];
+                    document.getElementById('connectWalletButton').innerText = `Connected: ${account.slice(0, 6)}...${account.slice(-4)}`;
+                    await switchNetwork('XLayer');
+                    await initializeContracts();
+                    await updateBalances();
+                    await updateRecentMemeCoins();
+                    document.getElementById('networkStatus').innerText = `Connected to X Layer`;
+                    document.getElementById('dogMessage').innerText = getRandomMessage('connectSuccess');
+                } catch (error) {
+                    console.error("Connection error:", error);
+                    document.getElementById('networkStatus').innerText = 'Failed to connect wallet';
+                    document.getElementById('dogMessage').innerText = getRandomMessage('connectFail');
+                }
+            } else {
+                document.getElementById('networkStatus').innerText = 'Please install MetaMask';
+                document.getElementById('dogMessage').innerText = 'Woof! MetaMask not found, pup!';
             }
         }
 
-        async function switchNetwork() {
+        async function switchNetwork(chain) {
+            const chainConfig = chains[chain];
             try {
                 await window.ethereum.request({
                     method: 'wallet_switchEthereumChain',
-                    params: [{ chainId: `0x${XLayer.chainId.toString(16)}` }]
+                    params: [{ chainId: `0x${chainConfig.chainId.toString(16)}` }]
                 });
             } catch (switchError) {
                 if (switchError.code === 4902) {
                     await window.ethereum.request({
                         method: 'wallet_addEthereumChain',
                         params: [{
-                            chainId: `0x${XLayer.chainId.toString(16)}`,
-                            chainName: XLayer.chainName,
-                            rpcUrls: XLayer.rpcUrls,
-                            nativeCurrency: XLayer.nativeCurrency,
-                            blockExplorerUrls: XLayer.blockExplorerUrls
+                            chainId: `0x${chainConfig.chainId.toString(16)}`,
+                            chainName: chainConfig.chainName,
+                            rpcUrls: [chainConfig.rpcUrl],
+                            nativeCurrency: chainConfig.nativeCurrency,
+                            blockExplorerUrls: [chainConfig.blockExplorer]
                         }]
                     });
                 } else {
                     throw switchError;
                 }
             }
+        }
+
+        async function initializeContracts() {
+            wstarLaunchpadContract = new web3.eth.Contract(WSTARlaunchpadAbi, WSTARlaunchpadAddress);
+            starContract = new web3.eth.Contract(erc20Abi, STARAddress);
+            wstarContract = new web3.eth.Contract(wrappedWSTARAbi, WSTARAddress);
         }
 
         async function updateBalances() {
@@ -589,6 +805,25 @@
             }
         }
 
+        async function setWithdrawPercentage(percentage) {
+            if (!web3 || !account) return;
+            try {
+                const balance = await wstarContract.methods.balanceOf(account).call();
+                const balanceEther = Number(web3.utils.fromWei(balance, 'ether'));
+                let amount;
+                if (percentage === 1) {
+                    amount = balanceEther - 0.0001;
+                } else {
+                    amount = balanceEther * percentage;
+                }
+                if (amount <= 0) amount = 0;
+                document.getElementById('withdrawAmount').value = amount.toFixed(8);
+            } catch (error) {
+                console.error("Set withdraw percentage error:", error);
+                document.getElementById('dogMessage').innerText = getRandomMessage('withdrawFail');
+            }
+        }
+
         async function depositWSTAR() {
             const status = document.getElementById('networkStatus');
             const depositButton = document.getElementById('depositButton');
@@ -610,7 +845,7 @@
             try {
                 depositButton.disabled = true;
                 depositButton.innerHTML = 'Depositing... <span class="spinner"></span>';
-                status.innerText = "Depositing WSTAR...";
+                status.innerText = "Depositing STAR...";
                 dogMessage.innerText = getRandomMessage('depositStart');
 
                 const amountWei = web3.utils.toWei(amount, 'ether');
@@ -621,18 +856,18 @@
                     return;
                 }
 
-                if (!hasApprovedWSTAR) {
+                if (!hasApprovedSTAR) {
                     status.innerText = "Approving STAR...";
                     const maxUint256 = '115792089237316195423570985008687907853269984665640564039457584007913129639935';
-                    const txApprove = await starContract.methods.approve(WSTARlaunchpadAddress, maxUint256).send({
+                    const txApprove = await starContract.methods.approve(WSTARAddress, maxUint256).send({
                         from: account,
                         gas: web3.utils.toHex(100000)
                     });
                     await waitForTransaction(txApprove.transactionHash);
-                    hasApprovedWSTAR = true;
+                    hasApprovedSTAR = true;
                 }
 
-                const tx = await wstarLaunchpadContract.methods.depositWSTAR(amountWei).send({
+                const tx = await wstarContract.methods.deposit(amountWei).send({
                     from: account,
                     gas: web3.utils.toHex(200000)
                 });
@@ -653,6 +888,62 @@
             } finally {
                 depositButton.disabled = false;
                 depositButton.innerHTML = 'Deposit';
+            }
+        }
+
+        async function withdrawWSTAR() {
+            const status = document.getElementById('networkStatus');
+            const withdrawButton = document.getElementById('withdrawButton');
+            const dogMessage = document.getElementById('dogMessage');
+            const amount = document.getElementById('withdrawAmount').value.trim();
+
+            if (!web3 || !account) {
+                status.innerText = "Please connect wallet first.";
+                dogMessage.innerText = getRandomMessage('connectFail');
+                return;
+            }
+
+            if (!amount || parseFloat(amount) <= 0) {
+                status.innerText = "Please enter a valid amount.";
+                dogMessage.innerText = getRandomMessage('invalidInput');
+                return;
+            }
+
+            try {
+                withdrawButton.disabled = true;
+                withdrawButton.innerHTML = 'Withdrawing... <span class="spinner"></span>';
+                status.innerText = "Withdrawing WSTAR...";
+                dogMessage.innerText = getRandomMessage('withdrawStart');
+
+                const amountWei = web3.utils.toWei(amount, 'ether');
+                const wstarBalance = await wstarContract.methods.balanceOf(account).call();
+                if (web3.utils.toBN(wstarBalance).lt(web3.utils.toBN(amountWei))) {
+                    status.innerText = "Insufficient WSTAR balance.";
+                    dogMessage.innerText = "Woof! Not enough WSTAR, pup!";
+                    return;
+                }
+
+                const tx = await wstarContract.methods.withdraw(amountWei).send({
+                    from: account,
+                    gas: web3.utils.toHex(200000)
+                });
+                await waitForTransaction(tx.transactionHash);
+
+                status.innerText = "Withdrawal successful!";
+                dogMessage.innerText = getRandomMessage('withdrawSuccess');
+                await updateBalances();
+            } catch (error) {
+                console.error("Withdraw error:", error);
+                if (error.code === 4001) {
+                    status.innerText = "Transaction canceled by user.";
+                    dogMessage.innerText = getRandomMessage('userDenied');
+                } else {
+                    status.innerText = "Withdrawal failed.";
+                    dogMessage.innerText = getRandomMessage('withdrawFail');
+                }
+            } finally {
+                withdrawButton.disabled = false;
+                withdrawButton.innerHTML = 'Withdraw';
             }
         }
 
@@ -744,8 +1035,9 @@
                 }
             } catch (error) {
                 console.error("Liquidity status error:", error);
-                status.innerText = "Error checking liquidity status.";
-                dogMessage.innerText = getRandomMessage('liquidityFail');
+                liquidityButton.disabled = false;
+                status.innerText = "Error checking liquidity status, but you can try adding.";
+                dogMessage.innerText = "Woof! Let's try adding liquidity anyway, pup!";
             }
         }
 
@@ -838,6 +1130,7 @@
 
         document.getElementById('connectWalletButton').addEventListener('click', initializeWeb3);
         document.getElementById('depositButton').addEventListener('click', depositWSTAR);
+        document.getElementById('withdrawButton').addEventListener('click', withdrawWSTAR);
         document.getElementById('deployMemeCoinButton').addEventListener('click', deployMemeCoin);
         document.getElementById('addLiquidityButton').addEventListener('click', addLiquidity);
         document.getElementById('memeCoinAddress').addEventListener('input', checkLiquidityStatus);
