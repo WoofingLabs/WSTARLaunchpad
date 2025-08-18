@@ -774,10 +774,11 @@
                         }
                     });
                 }
-                checkLiquidityStatus();
+                checkLiquidityStatus(); // Ensure button state is updated after populating dropdown
             } catch (error) {
                 console.error("Recent meme coins error:", error);
                 document.getElementById('recentMemeCoins').innerHTML = '<p>Error fetching meme coins.</p>';
+                document.getElementById('dogMessage').innerText = getRandomMessage('invalidInput');
             }
         }
 
@@ -1028,25 +1029,21 @@
             }
 
             try {
+                console.log("Checking liquidity for:", memeCoinAddress);
                 const hasLiquidity = await wstarLaunchpadContract.methods.hasLiquidityAdded(memeCoinAddress).call();
+                console.log("hasLiquidity:", hasLiquidity);
                 if (hasLiquidity) {
                     launchButton.disabled = true;
                     status.innerText = "Liquidity already added for this coin.";
                     dogMessage.innerText = getRandomMessage('liquidityExists');
                 } else {
-                    const isMemeCoin = await wstarLaunchpadContract.methods.isMemeCoin(memeCoinAddress).call();
-                    if (!isMemeCoin) {
-                        status.innerText = "This is not a valid meme coin.";
-                        dogMessage.innerText = getRandomMessage('invalidInput');
-                    } else {
-                        launchButton.disabled = false;
-                        status.innerText = "Ready to launch liquidity.";
-                        dogMessage.innerText = "Woof! Ready to launch, pup!";
-                    }
+                    launchButton.disabled = false;
+                    status.innerText = "Ready to launch liquidity.";
+                    dogMessage.innerText = "Woof! Ready to launch, pup!";
                 }
             } catch (error) {
                 console.error("Liquidity status error:", error);
-                launchButton.disabled = false;
+                launchButton.disabled = false; // Match wWoofswap behavior
                 status.innerText = "Error checking liquidity status, but you can try launching.";
                 dogMessage.innerText = "Woof! Let's try launching anyway, pup!";
             }
