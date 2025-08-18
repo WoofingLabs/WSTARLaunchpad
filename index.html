@@ -178,6 +178,33 @@
             top: 50%;
             transform: translateY(-50%);
         }
+        .meme-coin-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .meme-coin-button {
+            padding: 8px;
+            background: var(--primary-color);
+            color: var(--text-color);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9em;
+            flex: 1 1 auto;
+            text-align: center;
+            transition: background 0.2s;
+        }
+        .meme-coin-button:hover { background: #e68a00; }
+        .meme-coin-button:disabled {
+            background: #4a4f7a;
+            cursor: not-allowed;
+        }
+        .meme-coin-button.selected {
+            background: #e68a00;
+            border: 2px solid #ffffff;
+        }
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
@@ -187,6 +214,7 @@
             .container { padding: 15px; }
             .header { font-size: 1.1em; }
             .percentage-button { font-size: 0.7em; padding: 6px; }
+            .meme-coin-button { font-size: 0.8em; padding: 6px; }
             .dog-section img { width: 50px; height: 50px; }
             .dog-message { font-size: 0.8em; }
         }
@@ -234,7 +262,9 @@
         </div>
         <div class="input-box">
             <label>Add Liquidity</label>
-            <input type="text" id="memeCoinAddress" placeholder="Paste Meme Coin Contract Address">
+            <div class="meme-coin-buttons" id="memeCoinButtons">
+                <p>No meme coins available. Deploy one above!</p>
+            </div>
             <div class="token-info">
                 <p>Deployment Tips: Contract provides 100,000 WSTAR, user provides 1,000,000,000 MEME COIN</p>
             </div>
@@ -640,7 +670,7 @@
             }
         };
 
-        let web3, account, wstarLaunchpadContract, starContract, wstarContract;
+        let web3, account, wstarLaunchpadContract, starContract, wstarContract, selectedMemeCoinAddress = '';
 
         const dogMessages = {
             connectSuccess: ["Woof! Wallet connected, ready to manage tokens, pup!", "Arf! You're in, let's roll!", "Bark! Wallet's ready, time to play!"],
@@ -665,7 +695,7 @@
             copySuccess: ["Woof! Address copied to clipboard, pup!", "Arf! Copied, you're good to go!", "Bark! Address copied successfully!"],
             copyFail: ["Woof! Failed to copy address, try again, pup!", "Arf! Copy failed, give it another go!", "Bark! Couldn't copy, check your browser!"],
             liquidityExists: ["Woof! Liquidity already added for this coin, pup!", "Arf! Pool exists, pick another coin!", "Bark! This coin already has liquidity!"],
-            invalidMemeCoin: ["Woof! Invalid meme coin address, try another, pup!", "Arf! That coin isn't valid, check the address!", "Bark! Wrong coin address, enter a valid one!"],
+            invalidMemeCoin: ["Woof! Invalid meme coin, try another, pup!", "Arf! That coin isn't valid, pick another!", "Bark! Wrong coin, select a valid one!"],
             notCreator: ["Woof! You didn't create this coin, pup!", "Arf! Only the creator can add liquidity!", "Bark! Not your coin, try another!"],
             insufficientWSTAR: ["Woof! Not enough WSTAR in contract, pup!", "Arf! Contract needs more WSTAR!", "Bark! Low WSTAR balance in contract!"],
             insufficientGas: ["Woof! Not enough gas, check your OKB balance, pup!", "Arf! Gas funds too low, try again!", "Bark! Need more OKB for gas!"],
@@ -776,33 +806,57 @@
             if (!web3 || !account) {
                 console.log("No web3 or account, skipping updateRecentMemeCoins");
                 document.getElementById('recentMemeCoins').innerHTML = '<p>Please connect wallet to view meme coins.</p>';
+                document.getElementById('memeCoinButtons').innerHTML = '<p>Please connect wallet to select a meme coin.</p>';
                 return;
             }
             try {
                 console.log("Fetching recent meme coins for:", account);
                 const memeCoins = await wstarLaunchpadContract.methods.getRecentMemeCoins(account).call({ gas: web3.utils.toHex(1000000) });
                 console.log("Meme coins fetched:", memeCoins);
-                const container = document.getElementById('recentMemeCoins');
-                container.innerHTML = '';
+                const recentContainer = document.getElementById('recentMemeCoins');
+                const buttonContainer = document.getElementById('memeCoinButtons');
+                recentContainer.innerHTML = '';
+                buttonContainer.innerHTML = '';
                 if (memeCoins.length === 0) {
                     console.log("No meme coins found");
-                    container.innerHTML = '<p>No meme coins deployed yet. Deploy one above!</p>';
+                    recentContainer.innerHTML = '<p>No meme coins deployed yet. Deploy one above!</p>';
+                    buttonContainer.innerHTML = '<p>No meme coins available. Deploy one above!</p>';
                 } else {
                     memeCoins.forEach(coin => {
                         const checksumAddress = web3.utils.toChecksumAddress(coin.memeCoin);
                         const liquidityStatus = coin.pair === '0x0000000000000000000000000000000000000000' ? 'No liquidity' : 'Liquidity added';
+                        // Populate recent meme coins
                         const p = document.createElement('p');
                         p.innerHTML = `${coin.name} (${coin.symbol}): <span class="copyable-address" onclick="copyToClipboard('${checksumAddress}')">${checksumAddress}</span> - ${liquidityStatus}`;
-                        container.appendChild(p);
+                        recentContainer.appendChild(p);
+                        // Populate buttons
+                        const button = document.createElement('button');
+                        button.className = 'meme-coin-button';
+                        button.innerText = `${coin.name} (${coin.symbol})`;
+                        button.dataset.address = checksumAddress;
+                        button.disabled = liquidityStatus === 'Liquidity added';
+                        button.onclick = () => selectMemeCoin(checksumAddress, button);
+                        buttonContainer.appendChild(button);
                     });
                 }
                 checkLiquidityStatus();
             } catch (error) {
                 console.error("Recent meme coins error:", error);
                 document.getElementById('recentMemeCoins').innerHTML = '<p>Error fetching meme coins. Deploy a new coin or check network.</p>';
+                document.getElementById('memeCoinButtons').innerHTML = '<p>Error fetching meme coins. Deploy a new coin or check network.</p>';
                 document.getElementById('dogMessage').innerText = getRandomMessage('invalidInput');
                 checkLiquidityStatus();
             }
+        }
+
+        function selectMemeCoin(address, button) {
+            selectedMemeCoinAddress = address;
+            // Remove 'selected' class from all buttons
+            document.querySelectorAll('.meme-coin-button').forEach(btn => btn.classList.remove('selected'));
+            // Add 'selected' class to clicked button
+            button.classList.add('selected');
+            console.log("Selected meme coin:", address);
+            checkLiquidityStatus();
         }
 
         async function waitForTransaction(txHash) {
@@ -1109,12 +1163,11 @@
         }
 
         async function checkLiquidityStatus() {
-            const memeCoinAddress = document.getElementById('memeCoinAddress').value.trim();
             const launchButton = document.getElementById('launchButton');
             const status = document.getElementById('networkStatus');
             const dogMessage = document.getElementById('dogMessage');
 
-            console.log("checkLiquidityStatus called with address:", memeCoinAddress);
+            console.log("checkLiquidityStatus called with address:", selectedMemeCoinAddress);
 
             launchButton.disabled = true;
 
@@ -1125,15 +1178,15 @@
                 return;
             }
 
-            if (!memeCoinAddress || !web3.utils.isAddress(memeCoinAddress)) {
-                console.log("Invalid or no address provided, disabling Launch button");
-                status.innerText = "Please enter a valid meme coin address.";
-                dogMessage.innerText = getRandomMessage('invalidMemeCoin');
+            if (!selectedMemeCoinAddress) {
+                console.log("No meme coin selected, disabling Launch button");
+                status.innerText = "Please select a meme coin.";
+                dogMessage.innerText = getRandomMessage('invalidInput');
                 return;
             }
 
             try {
-                const checksumAddress = web3.utils.toChecksumAddress(memeCoinAddress);
+                const checksumAddress = web3.utils.toChecksumAddress(selectedMemeCoinAddress);
                 const hasLiquidity = await wstarLaunchpadContract.methods.hasLiquidityAdded(checksumAddress).call();
                 if (hasLiquidity) {
                     status.innerText = "Liquidity already added for this coin.";
@@ -1141,7 +1194,7 @@
                     return;
                 }
 
-                console.log("Valid address selected, enabling Launch button:", checksumAddress);
+                console.log("Valid meme coin selected, enabling Launch button:", checksumAddress);
                 launchButton.disabled = false;
                 status.innerText = "Ready to launch liquidity.";
                 dogMessage.innerText = "Woof! Ready to launch, pup!";
@@ -1156,7 +1209,6 @@
             const status = document.getElementById('networkStatus');
             const launchButton = document.getElementById('launchButton');
             const dogMessage = document.getElementById('dogMessage');
-            const memeCoinAddress = document.getElementById('memeCoinAddress').value.trim();
 
             if (!web3 || !account) {
                 status.innerText = "Please connect wallet first.";
@@ -1164,14 +1216,14 @@
                 return;
             }
 
-            if (!memeCoinAddress || !web3.utils.isAddress(memeCoinAddress)) {
-                status.innerText = "Please enter a valid meme coin address.";
-                dogMessage.innerText = getRandomMessage('invalidMemeCoin');
+            if (!selectedMemeCoinAddress) {
+                status.innerText = "Please select a meme coin.";
+                dogMessage.innerText = getRandomMessage('invalidInput');
                 return;
             }
 
             try {
-                const checksumAddress = web3.utils.toChecksumAddress(memeCoinAddress);
+                const checksumAddress = web3.utils.toChecksumAddress(selectedMemeCoinAddress);
                 console.log("Launching liquidity for:", checksumAddress);
                 launchButton.disabled = true;
                 launchButton.innerHTML = 'Launching... <span class="spinner"></span>';
@@ -1198,7 +1250,7 @@
                     status.innerText = "Insufficient OKB for gas.";
                     dogMessage.innerText = getRandomMessage('insufficientGas');
                 } else if (error.message.includes('Meme coin does not exist')) {
-                    status.innerText = "Invalid meme coin address.";
+                    status.innerText = "Invalid meme coin.";
                     dogMessage.innerText = getRandomMessage('invalidMemeCoin');
                 } else if (error.message.includes('Meme coin not created by user')) {
                     status.innerText = "You didn't create this coin.";
@@ -1225,7 +1277,6 @@
         document.getElementById('withdrawButton').addEventListener('click', withdrawWSTAR);
         document.getElementById('deployMemeCoinButton').addEventListener('click', deployMemeCoin);
         document.getElementById('launchButton').addEventListener('click', launchLiquidity);
-        document.getElementById('memeCoinAddress').addEventListener('input', checkLiquidityStatus);
 
         // Initialize checkLiquidityStatus on page load
         document.addEventListener('DOMContentLoaded', () => {
