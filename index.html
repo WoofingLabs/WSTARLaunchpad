@@ -178,26 +178,25 @@
             top: 50%;
             transform: translateY(-50%);
         }
-        .meme-coin-buttons {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
+        .meme-coin-list {
+            max-height: 150px;
+            overflow-y: auto;
             margin-bottom: 10px;
         }
-        .meme-coin-button {
-            padding: 8px;
-            background: var(--primary-color);
-            color: var(--text-color);
-            border: none;
-            border-radius: 8px;
+        .meme-coin-card {
+            background: var(--input-bg);
+            padding: 10px;
+            border-radius: 10px;
+            margin-bottom: 8px;
             cursor: pointer;
-            font-size: 0.9em;
-            flex: 1 1 auto;
-            text-align: center;
             transition: background 0.2s;
+            font-size: 0.9em;
+            text-align: center;
         }
-        .meme-coin-button:hover { background: #e68a00; }
-        .meme-coin-button.selected {
+        .meme-coin-card:hover {
+            background: #e68a00;
+        }
+        .meme-coin-card.selected {
             background: #e68a00;
             border: 2px solid #ffffff;
         }
@@ -210,7 +209,7 @@
             .container { padding: 15px; }
             .header { font-size: 1.1em; }
             .percentage-button { font-size: 0.7em; padding: 6px; }
-            .meme-coin-button { font-size: 0.8em; padding: 6px; }
+            .meme-coin-card { font-size: 0.8em; padding: 8px; }
             .dog-section img { width: 50px; height: 50px; }
             .dog-message { font-size: 0.8em; }
         }
@@ -252,9 +251,15 @@
             <button class="action-button" id="withdrawButton">Withdraw</button>
         </div>
         <div class="input-box">
+            <label>Deploy Meme Coin</label>
+            <input type="text" id="memeCoinName" placeholder="Token Name (e.g., DogeCoin)">
+            <input type="text" id="memeCoinSymbol" placeholder="Token Symbol (e.g., DOGE)">
+            <button class="action-button" id="deployMemeCoinButton">Deploy Meme Coin</button>
+        </div>
+        <div class="input-box">
             <label>Add Liquidity</label>
-            <div class="meme-coin-buttons" id="memeCoinButtons">
-                <p>No meme coins available. Deploy one above!</p>
+            <div class="meme-coin-list" id="memeCoinList">
+                <div class="meme-coin-card">No meme coins available. Deploy one above!</div>
             </div>
             <div class="token-info">
                 <p>Deployment Tips: Contract provides 100,000 WSTAR, user provides 1,000,000,000 MEME COIN</p>
@@ -798,7 +803,7 @@
             if (!web3 || !account) {
                 console.log("No web3 or account, skipping updateRecentMemeCoins");
                 document.getElementById('recentMemeCoins').innerHTML = '<p>Please connect wallet to view meme coins.</p>';
-                document.getElementById('memeCoinButtons').innerHTML = '<p>Please connect wallet to select a meme coin.</p>';
+                document.getElementById('memeCoinList').innerHTML = '<div class="meme-coin-card">Please connect wallet to select a meme coin.</div>';
                 return;
             }
             try {
@@ -806,13 +811,13 @@
                 const memeCoins = await wstarLaunchpadContract.methods.getRecentMemeCoins(account).call({ gas: web3.utils.toHex(1000000) });
                 console.log("Meme coins fetched:", memeCoins);
                 const recentContainer = document.getElementById('recentMemeCoins');
-                const buttonContainer = document.getElementById('memeCoinButtons');
+                const listContainer = document.getElementById('memeCoinList');
                 recentContainer.innerHTML = '';
-                buttonContainer.innerHTML = '';
+                listContainer.innerHTML = '';
                 if (memeCoins.length === 0) {
                     console.log("No meme coins found");
                     recentContainer.innerHTML = '<p>No meme coins deployed yet. Deploy one above!</p>';
-                    buttonContainer.innerHTML = '<p>No meme coins available. Deploy one above!</p>';
+                    listContainer.innerHTML = '<div class="meme-coin-card">No meme coins available. Deploy one above!</div>';
                 } else {
                     memeCoins.forEach(coin => {
                         const checksumAddress = web3.utils.toChecksumAddress(coin.memeCoin);
@@ -821,32 +826,32 @@
                         const p = document.createElement('p');
                         p.innerHTML = `${coin.name} (${coin.symbol}): <span class="copyable-address" onclick="copyToClipboard('${checksumAddress}')">${checksumAddress}</span> - ${liquidityStatus}`;
                         recentContainer.appendChild(p);
-                        // Populate buttons
-                        const button = document.createElement('button');
-                        button.className = 'meme-coin-button';
-                        button.innerText = `${coin.name} (${coin.symbol})`;
-                        button.dataset.address = checksumAddress;
-                        button.onclick = () => selectMemeCoin(checksumAddress, button);
-                        buttonContainer.appendChild(button);
+                        // Populate selection cards
+                        const card = document.createElement('div');
+                        card.className = 'meme-coin-card';
+                        card.innerText = `${coin.name} (${coin.symbol})`;
+                        card.dataset.address = checksumAddress;
+                        card.onclick = () => selectMemeCoin(checksumAddress, card);
+                        listContainer.appendChild(card);
                     });
                 }
-                console.log("Buttons populated, triggering checkLiquidityStatus");
+                console.log("Cards populated, triggering checkLiquidityStatus");
                 checkLiquidityStatus();
             } catch (error) {
                 console.error("Recent meme coins error:", error);
                 document.getElementById('recentMemeCoins').innerHTML = '<p>Error fetching meme coins. Deploy a new coin or check network.</p>';
-                document.getElementById('memeCoinButtons').innerHTML = '<p>Error fetching meme coins. Deploy a new coin or check network.</p>';
+                document.getElementById('memeCoinList').innerHTML = '<div class="meme-coin-card">Error fetching meme coins. Deploy a new coin or check network.</div>';
                 document.getElementById('dogMessage').innerText = getRandomMessage('invalidInput');
                 checkLiquidityStatus();
             }
         }
 
-        function selectMemeCoin(address, button) {
+        function selectMemeCoin(address, card) {
             selectedMemeCoinAddress = address;
-            // Remove 'selected' class from all buttons
-            document.querySelectorAll('.meme-coin-button').forEach(btn => btn.classList.remove('selected'));
-            // Add 'selected' class to clicked button
-            button.classList.add('selected');
+            // Remove 'selected' class from all cards
+            document.querySelectorAll('.meme-coin-card').forEach(c => c.classList.remove('selected'));
+            // Add 'selected' class to clicked card
+            card.classList.add('selected');
             console.log("Selected meme coin:", address);
             checkLiquidityStatus();
         }
@@ -1232,7 +1237,7 @@
             }
 
             if (!selectedMemeCoinAddress) {
-                console.log("No meme coin selected, disabling Launch button");
+                console.log("No address selected, disabling Launch button");
                 status.innerText = "Please select a meme coin.";
                 dogMessage.innerText = getRandomMessage('invalidInput');
                 return;
