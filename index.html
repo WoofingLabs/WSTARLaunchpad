@@ -213,7 +213,8 @@
                 <button class="percentage-button" onclick="setDepositPercentage(0.75)">75%</button>
                 <button class="percentage-button" onclick="setDepositPercentage(1)">Max</button>
             </div>
-            <button class="action-button" id="depositButton">Deposit</button>
+            <button class="action-button" id="authorizeButton">Authorize STAR</button>
+            <button class="action-button" id="depositButton" disabled>Deposit</button>
         </div>
         <div class="input-box">
             <label>Withdraw WSTAR for STAR</label>
@@ -650,7 +651,9 @@
             depositStart: ["Woof! Depositing STAR, hold tight, pup!", "Arf! Wrapping your tokens now!", "Bark! Deposit in progress!"],
             depositSuccess: ["Woof! STAR deposited, WSTAR received, pup!", "Arf! Tokens wrapped successfully!", "Bark! Success! WSTAR in your wallet!"],
             depositFail: ["Woof! Deposit failed, check STAR balance or authorization, pup!", "Arf! Something went wrong, try again!", "Bark! Deposit hit a snag, retry!"],
-            depositApproveFail: ["Woof! Authorization failed, try again, pup!", "Arf! Couldn't approve STAR, check your wallet!", "Bark! Approval issue, retry!"],
+            authorizeStart: ["Woof! Authorizing STAR, hold tight, pup!", "Arf! Approving tokens now!", "Bark! Authorization in progress!"],
+            authorizeSuccess: ["Woof! STAR authorized, you can now deposit, pup!", "Arf! Approval successful!", "Bark! Success! Ready to deposit!"],
+            authorizeFail: ["Woof! Authorization failed, try again, pup!", "Arf! Couldn't approve STAR, check your wallet!", "Bark! Approval issue, retry!"],
             withdrawStart: ["Woof! Withdrawing WSTAR, hold tight, pup!", "Arf! Unwrapping your tokens now!", "Bark! Withdrawal in progress!"],
             withdrawSuccess: ["Woof! WSTAR withdrawn, STAR received, pup!", "Arf! Tokens unwrapped successfully!", "Bark! Success! STAR in your wallet!"],
             withdrawFail: ["Woof! Withdrawal failed, check WSTAR balance, pup!", "Arf! Something went wrong, try again!", "Bark! Withdrawal hit a snag, retry!"],
@@ -699,6 +702,7 @@
                     await initializeContracts();
                     await updateBalances();
                     await updateRecentMemeCoins();
+                    await checkAuthorizationStatus();
                     document.getElementById('networkStatus').innerText = `Connected to X Layer`;
                     document.getElementById('dogMessage').innerText = getRandomMessage('connectSuccess');
                 } catch (error) {
@@ -874,6 +878,92 @@
             }
         }
 
+        async function checkAuthorizationStatus() {
+            if (!web3 || !account) {
+                console.log("No web3 or account, skipping authorization check");
+                document.getElementById('authorizeButton').disabled = true;
+                document.getElementById('depositButton').disabled = true;
+                return;
+            }
+            try {
+                const allowance = await starContract.methods.allowance(account, WSTARAddress).call();
+                const sufficientAllowance = web3.utils.toBN(allowance).gte(web3.utils.toBN(web3.utils.toWei('1000', 'ether')));
+                document.getElementById('authorizeButton').disabled = sufficientAllowance;
+                document.getElementById('depositButton').disabled = !sufficientAllowance;
+                document.getElementById('networkStatus').innerText = sufficientAllowance ? "STAR authorized, ready to deposit." : "Please authorize STAR first.";
+                console.log("Authorization status:", sufficientAllowance ? "Authorized" : "Not authorized");
+            } catch (error) {
+                console.error("Authorization check error:", error);
+                document.getElementById('networkStatus').innerText = "Error checking authorization status.";
+                document.getElementById('dogMessage').innerText = getRandomMessage('authorizeFail');
+            }
+        }
+
+        async function authorizeSTAR() {
+            const status = document.getElementById('networkStatus');
+            const authorizeButton = document.getElementById('authorizeButton');
+            const dogMessage = document.getElementById('dogMessage');
+
+            if (!web3 || !account) {
+                status.innerText = "Please connect wallet first.";
+                dogMessage.innerText = getRandomMessage('connectFail');
+                return;
+            }
+
+            try {
+                authorizeButton.disabled = true;
+                authorizeButton.innerHTML = 'Authorizing... <span class="spinner"></span>';
+                status.innerText = "Authorizing STAR...";
+                dogMessage.innerText = getRandomMessage('authorizeStart');
+
+                // Check native OKB balance for gas
+                const gasPrice = await web3.eth.getGasPrice();
+                const estimatedGas = await starContract.methods.approve(
+                    WSTARAddress,
+                    '115792089237316195423570985008687907853269984665640564039457584007913129639935'
+                ).estimateGas({ from: account });
+                const nativeBalance = await web3.eth.getBalance(account);
+                const gasCost = web3.utils.toBN(gasPrice).mul(web3.utils.toBN(estimatedGas));
+                if (web3.utils.toBN(nativeBalance).lt(gasCost)) {
+                    status.innerText = "Insufficient OKB for gas.";
+                    dogMessage.innerText = getRandomMessage('insufficientGas');
+                    return;
+                }
+
+                // Perform authorization
+                const tx = await starContract.methods.approve(
+                    WSTARAddress,
+                    '115792089237316195423570985008687907853269984665640564039457584007913129639935'
+                ).send({
+                    from: account,
+                    gas: web3.utils.toHex(Math.min(estimatedGas * 2, 1000000))
+                });
+                await waitForTransaction(tx.transactionHash);
+
+                status.innerText = "STAR authorized successfully!";
+                dogMessage.innerText = getRandomMessage('authorizeSuccess');
+                await checkAuthorizationStatus();
+            } catch (error) {
+                console.error("Authorize error:", error);
+                if (error.code === 4001) {
+                    status.innerText = "Authorization canceled by user.";
+                    dogMessage.innerText = getRandomMessage('userDenied');
+                } else if (error.message.includes('insufficient funds for gas')) {
+                    status.innerText = "Insufficient OKB for gas.";
+                    dogMessage.innerText = getRandomMessage('insufficientGas');
+                } else if (error.message.includes('revert')) {
+                    status.innerText = "Authorization failed due to contract error.";
+                    dogMessage.innerText = getRandomMessage('authorizeFail');
+                } else {
+                    status.innerText = "Authorization failed: " + (error.message || "Unknown error");
+                    dogMessage.innerText = getRandomMessage('authorizeFail');
+                }
+            } finally {
+                authorizeButton.disabled = false;
+                authorizeButton.innerHTML = 'Authorize STAR';
+            }
+        }
+
         async function depositWSTAR() {
             const status = document.getElementById('networkStatus');
             const depositButton = document.getElementById('depositButton');
@@ -917,23 +1007,12 @@
                     return;
                 }
 
-                // Check allowance and approve if necessary
+                // Check allowance (should be sufficient after authorization)
                 const allowance = await starContract.methods.allowance(account, WSTARAddress).call();
                 if (web3.utils.toBN(allowance).lt(web3.utils.toBN(amountWei))) {
-                    status.innerText = "Approving STAR...";
-                    const approveGas = await starContract.methods.approve(
-                        WSTARAddress,
-                        '115792089237316195423570985008687907853269984665640564039457584007913129639935'
-                    ).estimateGas({ from: account });
-                    const approveTx = await starContract.methods.approve(
-                        WSTARAddress,
-                        '115792089237316195423570985008687907853269984665640564039457584007913129639935'
-                    ).send({
-                        from: account,
-                        gas: web3.utils.toHex(Math.min(approveGas * 2, 1000000))
-                    });
-                    await waitForTransaction(approveTx.transactionHash);
-                    status.innerText = "Approval successful, depositing...";
+                    status.innerText = "Please authorize STAR first.";
+                    dogMessage.innerText = getRandomMessage('authorizeFail');
+                    return;
                 }
 
                 // Perform deposit
@@ -967,6 +1046,7 @@
             } finally {
                 depositButton.disabled = false;
                 depositButton.innerHTML = 'Deposit';
+                await checkAuthorizationStatus();
             }
         }
 
@@ -1193,16 +1273,18 @@
         }
 
         document.getElementById('connectWalletButton').addEventListener('click', initializeWeb3);
+        document.getElementById('authorizeButton').addEventListener('click', authorizeSTAR);
         document.getElementById('depositButton').addEventListener('click', depositWSTAR);
         document.getElementById('withdrawButton').addEventListener('click', withdrawWSTAR);
         document.getElementById('deployMemeCoinButton').addEventListener('click', deployMemeCoin);
         document.getElementById('launchButton').addEventListener('click', launchLiquidity);
         document.getElementById('memeCoinSelect').addEventListener('change', checkLiquidityStatus);
 
-        // Initialize checkLiquidityStatus on page load
+        // Initialize checkLiquidityStatus and authorization status on page load
         document.addEventListener('DOMContentLoaded', () => {
-            console.log("Page loaded, initializing checkLiquidityStatus");
+            console.log("Page loaded, initializing checkLiquidityStatus and authorization");
             checkLiquidityStatus();
+            checkAuthorizationStatus();
         });
     </script>
 </body>
