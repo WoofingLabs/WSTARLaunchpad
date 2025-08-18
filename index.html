@@ -256,7 +256,7 @@
     <script src="https://cdn.jsdelivr.net/npm/web3@1.7.0/dist/web3.min.js"></script>
     <script>
         const WSTARlaunchpadAddress = '0xD19C34A3543c68D9C3582a8F3AD91B42b7B718eC';
-        const STARAddress = '0x552473D6B6b72092aaecd8c4290b91a4Db89e7f6';
+        const STARAddress = '0x552473D6B6b72092aaecd8c4290b91A4Db89e7f6';
         const WSTARAddress = '0x9a8e42210E3EAaf866eD599cE9E630A7422d90cD';
 
         const WSTARlaunchpadAbi = [
@@ -649,7 +649,8 @@
             connectFail: ["Woof! Couldn't connect wallet, try again, pup!", "Arf! Wallet connection failed, give it another go!", "Bark! Something went wrong, check your wallet!"],
             depositStart: ["Woof! Depositing STAR, hold tight, pup!", "Arf! Wrapping your tokens now!", "Bark! Deposit in progress!"],
             depositSuccess: ["Woof! STAR deposited, WSTAR received, pup!", "Arf! Tokens wrapped successfully!", "Bark! Success! WSTAR in your wallet!"],
-            depositFail: ["Woof! Deposit failed, check STAR balance, pup!", "Arf! Something went wrong, try again!", "Bark! Deposit hit a snag, retry!"],
+            depositFail: ["Woof! Deposit failed, check STAR balance or authorization, pup!", "Arf! Something went wrong, try again!", "Bark! Deposit hit a snag, retry!"],
+            depositApproveFail: ["Woof! Authorization failed, try again, pup!", "Arf! Couldn't approve STAR, check your wallet!", "Bark! Approval issue, retry!"],
             withdrawStart: ["Woof! Withdrawing WSTAR, hold tight, pup!", "Arf! Unwrapping your tokens now!", "Bark! Withdrawal in progress!"],
             withdrawSuccess: ["Woof! WSTAR withdrawn, STAR received, pup!", "Arf! Tokens unwrapped successfully!", "Bark! Success! STAR in your wallet!"],
             withdrawFail: ["Woof! Withdrawal failed, check WSTAR balance, pup!", "Arf! Something went wrong, try again!", "Bark! Withdrawal hit a snag, retry!"],
@@ -659,14 +660,16 @@
             liquidityStart: ["Woof! Launching liquidity, hold tight, pup!", "Arf! Setting up the pool now!", "Bark! Launch in progress!"],
             liquiditySuccess: ["Woof! Liquidity launched, trading enabled, pup!", "Arf! Pool is live!", "Bark! Success! Liquidity added!"],
             liquidityFail: ["Woof! Launch failed, check tokens, pup!", "Arf! Something went wrong, try again!", "Bark! Launch hit a snag, retry!"],
-            invalidInput: ["Woof! Invalid selection, choose a meme coin, pup!", "Arf! Something's not right, check your selection!", "Bark! Need a valid coin to proceed!"],
+            invalidInput: ["Woof! Invalid input, check your amount, pup!", "Arf! Something's not right, check your input!", "Bark! Need a valid amount to proceed!"],
             userDenied: ["Woof! You canceled the transaction, pup!", "Arf! Transaction denied, try again when ready!", "Bark! You said no, let's try that again!"],
             copySuccess: ["Woof! Address copied to clipboard, pup!", "Arf! Copied, you're good to go!", "Bark! Address copied successfully!"],
             copyFail: ["Woof! Failed to copy address, try again, pup!", "Arf! Copy failed, give it another go!", "Bark! Couldn't copy, check your browser!"],
             liquidityExists: ["Woof! Liquidity already added for this coin, pup!", "Arf! Pool exists, pick another coin!", "Bark! This coin already has liquidity!"],
             invalidMemeCoin: ["Woof! Invalid meme coin, try another, pup!", "Arf! That coin isn't valid, pick another!", "Bark! Wrong coin, select a valid one!"],
             notCreator: ["Woof! You didn't create this coin, pup!", "Arf! Only the creator can add liquidity!", "Bark! Not your coin, try another!"],
-            insufficientWSTAR: ["Woof! Not enough WSTAR in contract, pup!", "Arf! Contract needs more WSTAR!", "Bark! Low WSTAR balance in contract!"]
+            insufficientWSTAR: ["Woof! Not enough WSTAR in contract, pup!", "Arf! Contract needs more WSTAR!", "Bark! Low WSTAR balance in contract!"],
+            insufficientGas: ["Woof! Not enough gas, check your OKB balance, pup!", "Arf! Gas funds too low, try again!", "Bark! Need more OKB for gas!"],
+            insufficientSTAR: ["Woof! Not enough STAR, check your balance, pup!", "Arf! STAR balance too low, top up!", "Bark! Need more STAR to deposit!"]
         };
 
         function getRandomMessage(type) {
@@ -892,29 +895,51 @@
             try {
                 depositButton.disabled = true;
                 depositButton.innerHTML = 'Depositing... <span class="spinner"></span>';
-                status.innerText = "Depositing STAR for WSTAR...";
+                status.innerText = "Checking STAR balance...";
                 dogMessage.innerText = getRandomMessage('depositStart');
 
                 const amountWei = web3.utils.toWei(amount, 'ether');
                 const starBalance = await starContract.methods.balanceOf(account).call();
                 if (web3.utils.toBN(starBalance).lt(web3.utils.toBN(amountWei))) {
                     status.innerText = "Insufficient STAR balance.";
-                    dogMessage.innerText = "Woof! Not enough STAR, pup!";
+                    dogMessage.innerText = getRandomMessage('insufficientSTAR');
                     return;
                 }
 
+                // Check native OKB balance for gas
+                const gasPrice = await web3.eth.getGasPrice();
+                const estimatedGas = await wstarContract.methods.deposit(amountWei).estimateGas({ from: account });
+                const nativeBalance = await web3.eth.getBalance(account);
+                const gasCost = web3.utils.toBN(gasPrice).mul(web3.utils.toBN(estimatedGas));
+                if (web3.utils.toBN(nativeBalance).lt(gasCost)) {
+                    status.innerText = "Insufficient OKB for gas.";
+                    dogMessage.innerText = getRandomMessage('insufficientGas');
+                    return;
+                }
+
+                // Check allowance and approve if necessary
                 const allowance = await starContract.methods.allowance(account, WSTARAddress).call();
                 if (web3.utils.toBN(allowance).lt(web3.utils.toBN(amountWei))) {
                     status.innerText = "Approving STAR...";
-                    await starContract.methods.approve(WSTARAddress, web3.utils.toWei('115792089237316195423570985008687907853269984665640564039457584007913129639935', 'ether')).send({
+                    const approveGas = await starContract.methods.approve(
+                        WSTARAddress,
+                        '115792089237316195423570985008687907853269984665640564039457584007913129639935'
+                    ).estimateGas({ from: account });
+                    const approveTx = await starContract.methods.approve(
+                        WSTARAddress,
+                        '115792089237316195423570985008687907853269984665640564039457584007913129639935'
+                    ).send({
                         from: account,
-                        gas: web3.utils.toHex(100000)
+                        gas: web3.utils.toHex(Math.min(approveGas * 2, 1000000))
                     });
+                    await waitForTransaction(approveTx.transactionHash);
+                    status.innerText = "Approval successful, depositing...";
                 }
 
+                // Perform deposit
                 const tx = await wstarContract.methods.deposit(amountWei).send({
                     from: account,
-                    gas: web3.utils.toHex(200000)
+                    gas: web3.utils.toHex(Math.min(estimatedGas * 2, 1000000))
                 });
                 await waitForTransaction(tx.transactionHash);
 
@@ -927,13 +952,16 @@
                     status.innerText = "Transaction canceled by user.";
                     dogMessage.innerText = getRandomMessage('userDenied');
                 } else if (error.message.includes('insufficient funds for gas')) {
-                    status.innerText = "Insufficient gas funds.";
-                    dogMessage.innerText = "Woof! Not enough gas, pup! Try increasing gas limit.";
+                    status.innerText = "Insufficient OKB for gas.";
+                    dogMessage.innerText = getRandomMessage('insufficientGas');
                 } else if (error.message.includes('STAR transfer failed')) {
                     status.innerText = "STAR transfer failed. Check approval.";
                     dogMessage.innerText = "Woof! STAR transfer issue, pup!";
+                } else if (error.message.includes('revert')) {
+                    status.innerText = "Deposit failed due to contract error.";
+                    dogMessage.innerText = getRandomMessage('depositFail');
                 } else {
-                    status.innerText = "Deposit failed.";
+                    status.innerText = "Deposit failed: " + (error.message || "Unknown error");
                     dogMessage.innerText = getRandomMessage('depositFail');
                 }
             } finally {
@@ -963,20 +991,32 @@
             try {
                 withdrawButton.disabled = true;
                 withdrawButton.innerHTML = 'Withdrawing... <span class="spinner"></span>';
-                status.innerText = "Withdrawing WSTAR for STAR...";
+                status.innerText = "Checking WSTAR balance...";
                 dogMessage.innerText = getRandomMessage('withdrawStart');
 
                 const amountWei = web3.utils.toWei(amount, 'ether');
                 const wstarBalance = await wstarContract.methods.balanceOf(account).call();
                 if (web3.utils.toBN(wstarBalance).lt(web3.utils.toBN(amountWei))) {
                     status.innerText = "Insufficient WSTAR balance.";
-                    dogMessage.innerText = "Woof! Not enough WSTAR, pup!";
+                    dogMessage.innerText = getRandomMessage('withdrawFail');
                     return;
                 }
 
+                // Check native OKB balance for gas
+                const gasPrice = await web3.eth.getGasPrice();
+                const estimatedGas = await wstarContract.methods.withdraw(amountWei).estimateGas({ from: account });
+                const nativeBalance = await web3.eth.getBalance(account);
+                const gasCost = web3.utils.toBN(gasPrice).mul(web3.utils.toBN(estimatedGas));
+                if (web3.utils.toBN(nativeBalance).lt(gasCost)) {
+                    status.innerText = "Insufficient OKB for gas.";
+                    dogMessage.innerText = getRandomMessage('insufficientGas');
+                    return;
+                }
+
+                // Perform withdrawal (no approval needed)
                 const tx = await wstarContract.methods.withdraw(amountWei).send({
                     from: account,
-                    gas: web3.utils.toHex(200000)
+                    gas: web3.utils.toHex(Math.min(estimatedGas * 2, 1000000))
                 });
                 await waitForTransaction(tx.transactionHash);
 
@@ -989,16 +1029,16 @@
                     status.innerText = "Transaction canceled by user.";
                     dogMessage.innerText = getRandomMessage('userDenied');
                 } else if (error.message.includes('insufficient funds for gas')) {
-                    status.innerText = "Insufficient gas funds.";
-                    dogMessage.innerText = "Woof! Not enough gas, pup! Try increasing gas limit.";
+                    status.innerText = "Insufficient OKB for gas.";
+                    dogMessage.innerText = getRandomMessage('insufficientGas');
                 } else if (error.message.includes('Insufficient balance for withdrawal')) {
                     status.innerText = "Insufficient WSTAR balance.";
-                    dogMessage.innerText = "Woof! Not enough WSTAR, pup!";
+                    dogMessage.innerText = getRandomMessage('withdrawFail');
                 } else if (error.message.includes('STAR transfer failed')) {
                     status.innerText = "STAR transfer failed. Check contract balance.";
                     dogMessage.innerText = "Woof! STAR transfer issue, pup!";
                 } else {
-                    status.innerText = "Withdrawal failed.";
+                    status.innerText = "Withdrawal failed: " + (error.message || "Unknown error");
                     dogMessage.innerText = getRandomMessage('withdrawFail');
                 }
             } finally {
@@ -1032,9 +1072,10 @@
                 status.innerText = "Deploying meme coin...";
                 dogMessage.innerText = getRandomMessage('deployStart');
 
+                const estimatedGas = await wstarLaunchpadContract.methods.deployMemeCoin(name, symbol).estimateGas({ from: account });
                 const tx = await wstarLaunchpadContract.methods.deployMemeCoin(name, symbol).send({
                     from: account,
-                    gas: web3.utils.toHex(3000000)
+                    gas: web3.utils.toHex(Math.min(estimatedGas * 2, 3000000))
                 });
                 await waitForTransaction(tx.transactionHash);
 
@@ -1047,10 +1088,10 @@
                     status.innerText = "Transaction canceled by user.";
                     dogMessage.innerText = getRandomMessage('userDenied');
                 } else if (error.message.includes('insufficient funds for gas')) {
-                    status.innerText = "Insufficient gas funds.";
-                    dogMessage.innerText = "Woof! Not enough gas, pup! Try increasing gas limit.";
+                    status.innerText = "Insufficient OKB for gas.";
+                    dogMessage.innerText = getRandomMessage('insufficientGas');
                 } else {
-                    status.innerText = "Deployment failed.";
+                    status.innerText = "Deployment failed: " + (error.message || "Unknown error");
                     dogMessage.innerText = getRandomMessage('deployFail');
                 }
             } finally {
@@ -1109,11 +1150,11 @@
                 status.innerText = "Launching liquidity...";
                 dogMessage.innerText = getRandomMessage('liquidityStart');
 
-                const gasEstimate = await wstarLaunchpadContract.methods.addLiquidity(checksumAddress).estimateGas({ from: account });
-                console.log("Estimated gas for addLiquidity:", gasEstimate);
+                const estimatedGas = await wstarLaunchpadContract.methods.addLiquidity(checksumAddress).estimateGas({ from: account });
+                console.log("Estimated gas for addLiquidity:", estimatedGas);
                 const tx = await wstarLaunchpadContract.methods.addLiquidity(checksumAddress).send({
                     from: account,
-                    gas: web3.utils.toHex(Math.min(gasEstimate * 2, 10000000))
+                    gas: web3.utils.toHex(Math.min(estimatedGas * 2, 10000000))
                 });
                 await waitForTransaction(tx.transactionHash);
 
@@ -1126,8 +1167,8 @@
                     status.innerText = "Transaction canceled by user.";
                     dogMessage.innerText = getRandomMessage('userDenied');
                 } else if (error.message.includes('insufficient funds for gas')) {
-                    status.innerText = "Insufficient gas funds.";
-                    dogMessage.innerText = "Woof! Not enough gas, pup! Try increasing gas limit.";
+                    status.innerText = "Insufficient OKB for gas.";
+                    dogMessage.innerText = getRandomMessage('insufficientGas');
                 } else if (error.message.includes('Meme coin does not exist')) {
                     status.innerText = "Invalid meme coin.";
                     dogMessage.innerText = getRandomMessage('invalidMemeCoin');
@@ -1141,7 +1182,7 @@
                     status.innerText = "Insufficient WSTAR in contract.";
                     dogMessage.innerText = getRandomMessage('insufficientWSTAR');
                 } else {
-                    status.innerText = "Launch failed.";
+                    status.innerText = "Launch failed: " + (error.message || "Unknown error");
                     dogMessage.innerText = getRandomMessage('liquidityFail');
                 }
             } finally {
