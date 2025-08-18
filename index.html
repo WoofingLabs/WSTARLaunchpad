@@ -134,7 +134,7 @@
         .token-info {
             background: var(--input-bg);
             padding: 15px;
-            border-radius: var(--border-radius);
+            border-radius: var(---border-radius);
             margin-bottom: 15px;
         }
         .token-info p {
@@ -680,6 +680,7 @@
                 await navigator.clipboard.writeText(address);
                 document.getElementById('dogMessage').innerText = getRandomMessage('copySuccess');
             } catch (error) {
+                console.error("Copy to clipboard error:", error);
                 document.getElementById('dogMessage').innerText = getRandomMessage('copyFail');
             }
         }
@@ -690,6 +691,7 @@
                 try {
                     await window.ethereum.request({ method: 'eth_requestAccounts' });
                     account = (await web3.eth.getAccounts())[0];
+                    console.log("Wallet connected:", account);
                     document.getElementById('connectWalletButton').innerText = `Connected: ${account.slice(0, 6)}...${account.slice(-4)}`;
                     await switchNetwork('XLayer');
                     await initializeContracts();
@@ -703,6 +705,7 @@
                     document.getElementById('dogMessage').innerText = getRandomMessage('connectFail');
                 }
             } else {
+                console.error("MetaMask not detected");
                 document.getElementById('networkStatus').innerText = 'Please install MetaMask';
                 document.getElementById('dogMessage').innerText = 'Woof! MetaMask not found, pup!';
             }
@@ -715,6 +718,7 @@
                     method: 'wallet_switchEthereumChain',
                     params: [{ chainId: `0x${chainConfig.chainId.toString(16)}` }]
                 });
+                console.log("Switched to network:", chainConfig.chainName);
             } catch (switchError) {
                 if (switchError.code === 4902) {
                     await window.ethereum.request({
@@ -727,25 +731,38 @@
                             blockExplorerUrls: [chainConfig.blockExplorer]
                         }]
                     });
+                    console.log("Added network:", chainConfig.chainName);
                 } else {
+                    console.error("Network switch error:", switchError);
                     throw switchError;
                 }
             }
         }
 
         async function initializeContracts() {
-            wstarLaunchpadContract = new web3.eth.Contract(WSTARlaunchpadAbi, WSTARlaunchpadAddress);
-            starContract = new web3.eth.Contract(erc20Abi, STARAddress);
-            wstarContract = new web3.eth.Contract(wrappedWSTARAbi, WSTARAddress);
+            try {
+                wstarLaunchpadContract = new web3.eth.Contract(WSTARlaunchpadAbi, web3.utils.toChecksumAddress(WSTARlaunchpadAddress));
+                starContract = new web3.eth.Contract(erc20Abi, web3.utils.toChecksumAddress(STARAddress));
+                wstarContract = new web3.eth.Contract(wrappedWSTARAbi, web3.utils.toChecksumAddress(WSTARAddress));
+                console.log("Contracts initialized successfully");
+            } catch (error) {
+                console.error("Contract initialization error:", error);
+                document.getElementById('networkStatus').innerText = 'Failed to initialize contracts';
+                document.getElementById('dogMessage').innerText = 'Woof! Contract setup failed, pup!';
+            }
         }
 
         async function updateBalances() {
-            if (!web3 || !account) return;
+            if (!web3 || !account) {
+                console.log("No web3 or account, skipping balance update");
+                return;
+            }
             try {
                 const starBalance = await starContract.methods.balanceOf(account).call();
                 const wstarBalance = await wstarContract.methods.balanceOf(account).call();
                 document.getElementById('starBalance').innerText = `Balance: ${Number(web3.utils.fromWei(starBalance, 'ether')).toLocaleString()}`;
                 document.getElementById('wstarBalance').innerText = `Balance: ${Number(web3.utils.fromWei(wstarBalance, 'ether')).toLocaleString()}`;
+                console.log("Balances updated:", { starBalance, wstarBalance });
             } catch (error) {
                 console.error("Balance update error:", error);
                 document.getElementById('starBalance').innerText = 'Balance: Error';
@@ -756,11 +773,12 @@
         async function updateRecentMemeCoins() {
             if (!web3 || !account) {
                 console.log("No web3 or account, skipping updateRecentMemeCoins");
+                document.getElementById('recentMemeCoins').innerHTML = '<p>Please connect wallet to view meme coins.</p>';
                 return;
             }
             try {
                 console.log("Fetching recent meme coins for:", account);
-                const memeCoins = await wstarLaunchpadContract.methods.getRecentMemeCoins(account).call();
+                const memeCoins = await wstarLaunchpadContract.methods.getRecentMemeCoins(account).call({ gas: web3.utils.toHex(1000000) });
                 console.log("Meme coins fetched:", memeCoins);
                 const container = document.getElementById('recentMemeCoins');
                 const select = document.getElementById('memeCoinSelect');
@@ -768,24 +786,27 @@
                 select.innerHTML = '<option value="">Select a Meme Coin</option>';
                 if (memeCoins.length === 0) {
                     console.log("No meme coins found");
-                    container.innerHTML = '<p>No meme coins deployed yet.</p>';
+                    container.innerHTML = '<p>No meme coins deployed yet. Deploy one above!</p>';
                 } else {
                     memeCoins.forEach(coin => {
+                        const checksumAddress = web3.utils.toChecksumAddress(coin.memeCoin);
                         const liquidityStatus = coin.pair === '0x0000000000000000000000000000000000000000' ? 'No liquidity' : 'Liquidity added';
                         const p = document.createElement('p');
-                        p.innerHTML = `${coin.name} (${coin.symbol}): <span class="copyable-address" onclick="copyToClipboard('${coin.memeCoin}')">${coin.memeCoin}</span> - ${liquidityStatus}`;
+                        p.innerHTML = `${coin.name} (${coin.symbol}): <span class="copyable-address" onclick="copyToClipboard('${checksumAddress}')">${checksumAddress}</span> - ${liquidityStatus}`;
                         container.appendChild(p);
                         const option = document.createElement('option');
-                        option.value = coin.memeCoin;
+                        option.value = checksumAddress;
                         option.text = `${coin.name} (${coin.symbol})`;
                         select.appendChild(option);
                     });
                 }
-                checkLiquidityStatus(); // Update button state after populating dropdown
+                console.log("Dropdown populated, triggering checkLiquidityStatus");
+                checkLiquidityStatus();
             } catch (error) {
                 console.error("Recent meme coins error:", error);
-                document.getElementById('recentMemeCoins').innerHTML = '<p>Error fetching meme coins.</p>';
+                document.getElementById('recentMemeCoins').innerHTML = '<p>Error fetching meme coins. Deploy a new coin or check network.</p>';
                 document.getElementById('dogMessage').innerText = getRandomMessage('invalidInput');
+                checkLiquidityStatus();
             }
         }
 
@@ -806,7 +827,10 @@
         }
 
         async function setDepositPercentage(percentage) {
-            if (!web3 || !account) return;
+            if (!web3 || !account) {
+                console.log("No web3 or account, skipping setDepositPercentage");
+                return;
+            }
             try {
                 const balance = await starContract.methods.balanceOf(account).call();
                 const balanceEther = Number(web3.utils.fromWei(balance, 'ether'));
@@ -818,6 +842,7 @@
                 }
                 if (amount <= 0) amount = 0;
                 document.getElementById('depositAmount').value = amount.toFixed(8);
+                console.log("Deposit percentage set:", percentage, "Amount:", amount);
             } catch (error) {
                 console.error("Set deposit percentage error:", error);
                 document.getElementById('dogMessage').innerText = getRandomMessage('depositFail');
@@ -825,7 +850,10 @@
         }
 
         async function setWithdrawPercentage(percentage) {
-            if (!web3 || !account) return;
+            if (!web3 || !account) {
+                console.log("No web3 or account, skipping setWithdrawPercentage");
+                return;
+            }
             try {
                 const balance = await wstarContract.methods.balanceOf(account).call();
                 const balanceEther = Number(web3.utils.fromWei(balance, 'ether'));
@@ -837,6 +865,7 @@
                 }
                 if (amount <= 0) amount = 0;
                 document.getElementById('withdrawAmount').value = amount.toFixed(8);
+                console.log("Withdraw percentage set:", percentage, "Amount:", amount);
             } catch (error) {
                 console.error("Set withdraw percentage error:", error);
                 document.getElementById('dogMessage').innerText = getRandomMessage('withdrawFail');
@@ -900,6 +929,9 @@
                 if (error.code === 4001) {
                     status.innerText = "Transaction canceled by user.";
                     dogMessage.innerText = getRandomMessage('userDenied');
+                } else if (error.message.includes('insufficient funds for gas')) {
+                    status.innerText = "Insufficient gas funds.";
+                    dogMessage.innerText = "Woof! Not enough gas, pup! Try increasing gas limit.";
                 } else {
                     status.innerText = "Deposit failed.";
                     dogMessage.innerText = getRandomMessage('depositFail');
@@ -956,6 +988,9 @@
                 if (error.code === 4001) {
                     status.innerText = "Transaction canceled by user.";
                     dogMessage.innerText = getRandomMessage('userDenied');
+                } else if (error.message.includes('insufficient funds for gas')) {
+                    status.innerText = "Insufficient gas funds.";
+                    dogMessage.innerText = "Woof! Not enough gas, pup! Try increasing gas limit.";
                 } else {
                     status.innerText = "Withdrawal failed.";
                     dogMessage.innerText = getRandomMessage('withdrawFail');
@@ -1005,6 +1040,9 @@
                 if (error.code === 4001) {
                     status.innerText = "Transaction canceled by user.";
                     dogMessage.innerText = getRandomMessage('userDenied');
+                } else if (error.message.includes('insufficient funds for gas')) {
+                    status.innerText = "Insufficient gas funds.";
+                    dogMessage.innerText = "Woof! Not enough gas, pup! Try increasing gas limit.";
                 } else {
                     status.innerText = "Deployment failed.";
                     dogMessage.innerText = getRandomMessage('deployFail');
@@ -1026,24 +1064,30 @@
             launchButton.disabled = true;
 
             if (!web3 || !account) {
-                console.log("No web3 or account, disabling button");
+                console.log("No web3 or account, disabling Launch button");
                 status.innerText = "Please connect wallet first.";
                 dogMessage.innerText = getRandomMessage('connectFail');
                 return;
             }
 
-            if (!memeCoinAddress || !web3.utils.isAddress(memeCoinAddress)) {
-                console.log("Invalid or empty address, disabling button");
+            if (!memeCoinAddress) {
+                console.log("No address selected, disabling Launch button");
                 status.innerText = "Please select a meme coin.";
                 dogMessage.innerText = getRandomMessage('invalidInput');
                 return;
             }
 
-            // Enable button for any valid address selection
-            console.log("Valid address selected, enabling Launch button");
-            launchButton.disabled = false;
-            status.innerText = "Ready to launch liquidity.";
-            dogMessage.innerText = "Woof! Ready to launch, pup!";
+            try {
+                const checksumAddress = web3.utils.toChecksumAddress(memeCoinAddress);
+                console.log("Valid address selected, enabling Launch button:", checksumAddress);
+                launchButton.disabled = false;
+                status.innerText = "Ready to launch liquidity.";
+                dogMessage.innerText = "Woof! Ready to launch, pup!";
+            } catch (error) {
+                console.error("Address validation error:", error);
+                status.innerText = "Invalid meme coin address.";
+                dogMessage.innerText = getRandomMessage('invalidInput');
+            }
         }
 
         async function launchLiquidity() {
@@ -1058,19 +1102,15 @@
                 return;
             }
 
-            if (!web3.utils.isAddress(memeCoinAddress)) {
-                status.innerText = "Please select a valid meme coin.";
-                dogMessage.innerText = getRandomMessage('invalidInput');
-                return;
-            }
-
             try {
+                const checksumAddress = web3.utils.toChecksumAddress(memeCoinAddress);
+                console.log("Launching liquidity for:", checksumAddress);
                 launchButton.disabled = true;
                 launchButton.innerHTML = 'Launching... <span class="spinner"></span>';
                 status.innerText = "Launching liquidity...";
                 dogMessage.innerText = getRandomMessage('liquidityStart');
 
-                const memeCoinContract = new web3.eth.Contract(erc20Abi, memeCoinAddress);
+                const memeCoinContract = new web3.eth.Contract(erc20Abi, checksumAddress);
                 const memeCoinBalance = await memeCoinContract.methods.balanceOf(account).call();
                 const requiredMemeCoinAmount = web3.utils.toWei('1000000000', 'ether');
                 const wstarBalance = await wstarContract.methods.balanceOf(account).call();
@@ -1107,9 +1147,11 @@
                     });
                 }
 
-                const tx = await wstarLaunchpadContract.methods.addLiquidity(memeCoinAddress).send({
+                const gasEstimate = await wstarLaunchpadContract.methods.addLiquidity(checksumAddress).estimateGas({ from: account });
+                console.log("Estimated gas for addLiquidity:", gasEstimate);
+                const tx = await wstarLaunchpadContract.methods.addLiquidity(checksumAddress).send({
                     from: account,
-                    gas: web3.utils.toHex(5000000)
+                    gas: web3.utils.toHex(Math.min(gasEstimate * 2, 5000000))
                 });
                 await waitForTransaction(tx.transactionHash);
 
@@ -1145,6 +1187,7 @@
             } finally {
                 launchButton.disabled = false;
                 launchButton.innerHTML = 'Launch';
+                checkLiquidityStatus();
             }
         }
 
@@ -1154,6 +1197,12 @@
         document.getElementById('deployMemeCoinButton').addEventListener('click', deployMemeCoin);
         document.getElementById('launchButton').addEventListener('click', launchLiquidity);
         document.getElementById('memeCoinSelect').addEventListener('change', checkLiquidityStatus);
+
+        // Initialize checkLiquidityStatus on page load to ensure button state is correct
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log("Page loaded, initializing checkLiquidityStatus");
+            checkLiquidityStatus();
+        });
     </script>
 </body>
 </html>
