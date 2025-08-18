@@ -205,8 +205,8 @@
             <div class="balance-row"><span>WSTAR</span><span id="wstarBalance">Balance: 0</span></div>
         </div>
         <div class="input-box">
-            <label>Deposit WSTAR to Contract</label>
-            <input type="number" id="depositAmount" placeholder="Amount of WSTAR" min="0" step="any">
+            <label>Deposit STAR for WSTAR</label>
+            <input type="number" id="depositAmount" placeholder="Amount of STAR" min="0" step="any">
             <div class="percentage-buttons">
                 <button class="percentage-button" onclick="setDepositPercentage(0.25)">25%</button>
                 <button class="percentage-button" onclick="setDepositPercentage(0.5)">50%</button>
@@ -216,7 +216,7 @@
             <button class="action-button" id="depositButton">Deposit</button>
         </div>
         <div class="input-box">
-            <label>Withdraw WSTAR from Contract</label>
+            <label>Withdraw WSTAR for STAR</label>
             <input type="number" id="withdrawAmount" placeholder="Amount of WSTAR" min="0" step="any">
             <div class="percentage-buttons">
                 <button class="percentage-button" onclick="setWithdrawPercentage(0.25)">25%</button>
@@ -647,12 +647,12 @@
         const dogMessages = {
             connectSuccess: ["Woof! Wallet connected, ready to manage tokens, pup!", "Arf! You're in, let's roll!", "Bark! Wallet's ready, time to play!"],
             connectFail: ["Woof! Couldn't connect wallet, try again, pup!", "Arf! Wallet connection failed, give it another go!", "Bark! Something went wrong, check your wallet!"],
-            depositStart: ["Woof! Depositing WSTAR, hold tight, pup!", "Arf! Depositing to contract now!", "Bark! Deposit in progress!"],
-            depositSuccess: ["Woof! WSTAR deposited to contract, pup!", "Arf! Deposit successful!", "Bark! Success! WSTAR added to contract!"],
-            depositFail: ["Woof! Deposit failed, check balance, pup!", "Arf! Something went wrong, try again!", "Bark! Deposit hit a snag, retry!"],
-            withdrawStart: ["Woof! Withdrawing WSTAR, hold tight, pup!", "Arf! Withdrawing from contract now!", "Bark! Withdrawal in progress!"],
-            withdrawSuccess: ["Woof! WSTAR withdrawn from contract, pup!", "Arf! Withdrawal successful!", "Bark! Success! WSTAR returned!"],
-            withdrawFail: ["Woof! Withdrawal failed, check balance, pup!", "Arf! Something went wrong, try again!", "Bark! Withdrawal hit a snag, retry!"],
+            depositStart: ["Woof! Depositing STAR, hold tight, pup!", "Arf! Wrapping your tokens now!", "Bark! Deposit in progress!"],
+            depositSuccess: ["Woof! STAR deposited, WSTAR received, pup!", "Arf! Tokens wrapped successfully!", "Bark! Success! WSTAR in your wallet!"],
+            depositFail: ["Woof! Deposit failed, check STAR balance, pup!", "Arf! Something went wrong, try again!", "Bark! Deposit hit a snag, retry!"],
+            withdrawStart: ["Woof! Withdrawing WSTAR, hold tight, pup!", "Arf! Unwrapping your tokens now!", "Bark! Withdrawal in progress!"],
+            withdrawSuccess: ["Woof! WSTAR withdrawn, STAR received, pup!", "Arf! Tokens unwrapped successfully!", "Bark! Success! STAR in your wallet!"],
+            withdrawFail: ["Woof! Withdrawal failed, check WSTAR balance, pup!", "Arf! Something went wrong, try again!", "Bark! Withdrawal hit a snag, retry!"],
             deployStart: ["Woof! Deploying your meme coin, hold tight, pup!", "Arf! Creating your token now!", "Bark! Deployment in progress!"],
             deploySuccess: ["Woof! Meme coin deployed, you're rolling, pup!", "Arf! Your token is live!", "Bark! Success! Meme coin created!"],
             deployFail: ["Woof! Deployment failed, check details, pup!", "Arf! Something went wrong, try again!", "Bark! Deployment hit a snag, retry!"],
@@ -892,11 +892,27 @@
             try {
                 depositButton.disabled = true;
                 depositButton.innerHTML = 'Depositing... <span class="spinner"></span>';
-                status.innerText = "Depositing WSTAR to contract...";
+                status.innerText = "Depositing STAR for WSTAR...";
                 dogMessage.innerText = getRandomMessage('depositStart');
 
                 const amountWei = web3.utils.toWei(amount, 'ether');
-                const tx = await wstarLaunchpadContract.methods.depositWSTAR(amountWei).send({
+                const starBalance = await starContract.methods.balanceOf(account).call();
+                if (web3.utils.toBN(starBalance).lt(web3.utils.toBN(amountWei))) {
+                    status.innerText = "Insufficient STAR balance.";
+                    dogMessage.innerText = "Woof! Not enough STAR, pup!";
+                    return;
+                }
+
+                const allowance = await starContract.methods.allowance(account, WSTARAddress).call();
+                if (web3.utils.toBN(allowance).lt(web3.utils.toBN(amountWei))) {
+                    status.innerText = "Approving STAR...";
+                    await starContract.methods.approve(WSTARAddress, web3.utils.toWei('115792089237316195423570985008687907853269984665640564039457584007913129639935', 'ether')).send({
+                        from: account,
+                        gas: web3.utils.toHex(100000)
+                    });
+                }
+
+                const tx = await wstarContract.methods.deposit(amountWei).send({
                     from: account,
                     gas: web3.utils.toHex(200000)
                 });
@@ -913,6 +929,9 @@
                 } else if (error.message.includes('insufficient funds for gas')) {
                     status.innerText = "Insufficient gas funds.";
                     dogMessage.innerText = "Woof! Not enough gas, pup! Try increasing gas limit.";
+                } else if (error.message.includes('STAR transfer failed')) {
+                    status.innerText = "STAR transfer failed. Check approval.";
+                    dogMessage.innerText = "Woof! STAR transfer issue, pup!";
                 } else {
                     status.innerText = "Deposit failed.";
                     dogMessage.innerText = getRandomMessage('depositFail');
@@ -944,11 +963,18 @@
             try {
                 withdrawButton.disabled = true;
                 withdrawButton.innerHTML = 'Withdrawing... <span class="spinner"></span>';
-                status.innerText = "Withdrawing WSTAR from contract...";
+                status.innerText = "Withdrawing WSTAR for STAR...";
                 dogMessage.innerText = getRandomMessage('withdrawStart');
 
                 const amountWei = web3.utils.toWei(amount, 'ether');
-                const tx = await wstarLaunchpadContract.methods.withdraw(amountWei).send({
+                const wstarBalance = await wstarContract.methods.balanceOf(account).call();
+                if (web3.utils.toBN(wstarBalance).lt(web3.utils.toBN(amountWei))) {
+                    status.innerText = "Insufficient WSTAR balance.";
+                    dogMessage.innerText = "Woof! Not enough WSTAR, pup!";
+                    return;
+                }
+
+                const tx = await wstarContract.methods.withdraw(amountWei).send({
                     from: account,
                     gas: web3.utils.toHex(200000)
                 });
@@ -965,6 +991,12 @@
                 } else if (error.message.includes('insufficient funds for gas')) {
                     status.innerText = "Insufficient gas funds.";
                     dogMessage.innerText = "Woof! Not enough gas, pup! Try increasing gas limit.";
+                } else if (error.message.includes('Insufficient balance for withdrawal')) {
+                    status.innerText = "Insufficient WSTAR balance.";
+                    dogMessage.innerText = "Woof! Not enough WSTAR, pup!";
+                } else if (error.message.includes('STAR transfer failed')) {
+                    status.innerText = "STAR transfer failed. Check contract balance.";
+                    dogMessage.innerText = "Woof! STAR transfer issue, pup!";
                 } else {
                     status.innerText = "Withdrawal failed.";
                     dogMessage.innerText = getRandomMessage('withdrawFail');
