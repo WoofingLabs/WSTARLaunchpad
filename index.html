@@ -766,15 +766,13 @@
                         const p = document.createElement('p');
                         p.innerHTML = `${coin.name} (${coin.symbol}): <span class="copyable-address" onclick="copyToClipboard('${coin.memeCoin}')">${coin.memeCoin}</span> - ${liquidityStatus}`;
                         container.appendChild(p);
-                        if (coin.pair === '0x0000000000000000000000000000000000000000') {
-                            const option = document.createElement('option');
-                            option.value = coin.memeCoin;
-                            option.text = `${coin.name} (${coin.symbol})`;
-                            select.appendChild(option);
-                        }
+                        const option = document.createElement('option');
+                        option.value = coin.memeCoin;
+                        option.text = `${coin.name} (${coin.symbol})`;
+                        select.appendChild(option);
                     });
                 }
-                checkLiquidityStatus(); // Ensure button state is updated after populating dropdown
+                checkLiquidityStatus(); // Update button state after populating dropdown
             } catch (error) {
                 console.error("Recent meme coins error:", error);
                 document.getElementById('recentMemeCoins').innerHTML = '<p>Error fetching meme coins.</p>';
@@ -1028,25 +1026,10 @@
                 return;
             }
 
-            try {
-                console.log("Checking liquidity for:", memeCoinAddress);
-                const hasLiquidity = await wstarLaunchpadContract.methods.hasLiquidityAdded(memeCoinAddress).call();
-                console.log("hasLiquidity:", hasLiquidity);
-                if (hasLiquidity) {
-                    launchButton.disabled = true;
-                    status.innerText = "Liquidity already added for this coin.";
-                    dogMessage.innerText = getRandomMessage('liquidityExists');
-                } else {
-                    launchButton.disabled = false;
-                    status.innerText = "Ready to launch liquidity.";
-                    dogMessage.innerText = "Woof! Ready to launch, pup!";
-                }
-            } catch (error) {
-                console.error("Liquidity status error:", error);
-                launchButton.disabled = false; // Match wWoofswap behavior
-                status.innerText = "Error checking liquidity status, but you can try launching.";
-                dogMessage.innerText = "Woof! Let's try launching anyway, pup!";
-            }
+            // No contract checks; enable button if address is valid
+            launchButton.disabled = false;
+            status.innerText = "Ready to launch liquidity.";
+            dogMessage.innerText = "Woof! Ready to launch, pup!";
         }
 
         async function launchLiquidity() {
@@ -1129,6 +1112,9 @@
                 } else if (error.message.includes('insufficient funds for gas')) {
                     status.innerText = "Insufficient gas funds.";
                     dogMessage.innerText = "Woof! Not enough gas, pup! Try increasing gas limit.";
+                } else if (error.message.includes('Liquidity already added')) {
+                    status.innerText = "Liquidity already added for this coin.";
+                    dogMessage.innerText = getRandomMessage('liquidityExists');
                 } else {
                     status.innerText = "Launch failed.";
                     dogMessage.innerText = getRandomMessage('liquidityFail');
