@@ -72,7 +72,7 @@
             font-size: 0.9em;
             margin-bottom: 5px;
         }
-        input {
+        input, select {
             width: 100%;
             padding: 10px;
             background: var(--input-bg);
@@ -234,11 +234,13 @@
         </div>
         <div class="input-box">
             <label>Add Liquidity</label>
-            <input type="text" id="memeCoinAddress" placeholder="Meme Coin Address">
+            <select id="memeCoinSelect" onchange="checkLiquidityStatus()">
+                <option value="">Select a Meme Coin</option>
+            </select>
             <div class="token-info">
                 <p>Deployment Tips: 100,000 WSTAR, 1,000,000,000 MEME COIN</p>
             </div>
-            <button class="action-button" id="addLiquidityButton" disabled>Add Liquidity</button>
+            <button class="action-button" id="launchButton" disabled>Launch</button>
         </div>
         <div class="input-box">
             <label>Recent Meme Coins (Up to 20)</label>
@@ -655,10 +657,10 @@
             deployStart: ["Woof! Deploying your meme coin, hold tight, pup!", "Arf! Creating your token now!", "Bark! Deployment in progress!"],
             deploySuccess: ["Woof! Meme coin deployed, you're rolling, pup!", "Arf! Your token is live!", "Bark! Success! Meme coin created!"],
             deployFail: ["Woof! Deployment failed, check details, pup!", "Arf! Something went wrong, try again!", "Bark! Deployment hit a snag, retry!"],
-            liquidityStart: ["Woof! Adding liquidity, hold tight, pup!", "Arf! Setting up the pool now!", "Bark! Liquidity in progress!"],
-            liquiditySuccess: ["Woof! Liquidity added, trading enabled, pup!", "Arf! Pool is live!", "Bark! Success! Liquidity added!"],
-            liquidityFail: ["Woof! Liquidity addition failed, check tokens, pup!", "Arf! Something went wrong, try again!", "Bark! Liquidity hit a snag, retry!"],
-            invalidInput: ["Woof! Invalid input, check details, pup!", "Arf! Something's not right, check your inputs!", "Bark! Need valid details to proceed!"],
+            liquidityStart: ["Woof! Launching liquidity, hold tight, pup!", "Arf! Setting up the pool now!", "Bark! Launch in progress!"],
+            liquiditySuccess: ["Woof! Liquidity launched, trading enabled, pup!", "Arf! Pool is live!", "Bark! Success! Liquidity added!"],
+            liquidityFail: ["Woof! Launch failed, check tokens, pup!", "Arf! Something went wrong, try again!", "Bark! Launch hit a snag, retry!"],
+            invalidInput: ["Woof! Invalid selection, choose a meme coin, pup!", "Arf! Something's not right, check your selection!", "Bark! Need a valid coin to proceed!"],
             userDenied: ["Woof! You canceled the transaction, pup!", "Arf! Transaction denied, try again when ready!", "Bark! You said no, let's try that again!"],
             copySuccess: ["Woof! Address copied to clipboard, pup!", "Arf! Copied, you're good to go!", "Bark! Address copied successfully!"],
             copyFail: ["Woof! Failed to copy address, try again, pup!", "Arf! Copy failed, give it another go!", "Bark! Couldn't copy, check your browser!"],
@@ -753,7 +755,9 @@
             try {
                 const memeCoins = await wstarLaunchpadContract.methods.getRecentMemeCoins(account).call();
                 const container = document.getElementById('recentMemeCoins');
+                const select = document.getElementById('memeCoinSelect');
                 container.innerHTML = '';
+                select.innerHTML = '<option value="">Select a Meme Coin</option>';
                 if (memeCoins.length === 0) {
                     container.innerHTML = '<p>No meme coins deployed yet.</p>';
                 } else {
@@ -762,8 +766,15 @@
                         const p = document.createElement('p');
                         p.innerHTML = `${coin.name} (${coin.symbol}): <span class="copyable-address" onclick="copyToClipboard('${coin.memeCoin}')">${coin.memeCoin}</span> - ${liquidityStatus}`;
                         container.appendChild(p);
+                        if (coin.pair === '0x0000000000000000000000000000000000000000') {
+                            const option = document.createElement('option');
+                            option.value = coin.memeCoin;
+                            option.text = `${coin.name} (${coin.symbol})`;
+                            select.appendChild(option);
+                        }
                     });
                 }
+                checkLiquidityStatus();
             } catch (error) {
                 console.error("Recent meme coins error:", error);
                 document.getElementById('recentMemeCoins').innerHTML = '<p>Error fetching meme coins.</p>';
@@ -997,12 +1008,12 @@
         }
 
         async function checkLiquidityStatus() {
-            const memeCoinAddress = document.getElementById('memeCoinAddress').value.trim();
-            const liquidityButton = document.getElementById('addLiquidityButton');
+            const memeCoinAddress = document.getElementById('memeCoinSelect').value;
+            const launchButton = document.getElementById('launchButton');
             const status = document.getElementById('networkStatus');
             const dogMessage = document.getElementById('dogMessage');
 
-            liquidityButton.disabled = true;
+            launchButton.disabled = true;
 
             if (!web3 || !account) {
                 status.innerText = "Please connect wallet first.";
@@ -1011,7 +1022,7 @@
             }
 
             if (!memeCoinAddress || !web3.utils.isAddress(memeCoinAddress)) {
-                status.innerText = "Please enter a valid meme coin address.";
+                status.innerText = "Please select a meme coin.";
                 dogMessage.innerText = getRandomMessage('invalidInput');
                 return;
             }
@@ -1019,7 +1030,7 @@
             try {
                 const hasLiquidity = await wstarLaunchpadContract.methods.hasLiquidityAdded(memeCoinAddress).call();
                 if (hasLiquidity) {
-                    liquidityButton.disabled = true;
+                    launchButton.disabled = true;
                     status.innerText = "Liquidity already added for this coin.";
                     dogMessage.innerText = getRandomMessage('liquidityExists');
                 } else {
@@ -1028,24 +1039,24 @@
                         status.innerText = "This is not a valid meme coin.";
                         dogMessage.innerText = getRandomMessage('invalidInput');
                     } else {
-                        liquidityButton.disabled = false;
-                        status.innerText = "Ready to add liquidity.";
-                        dogMessage.innerText = "Woof! Ready to add liquidity, pup!";
+                        launchButton.disabled = false;
+                        status.innerText = "Ready to launch liquidity.";
+                        dogMessage.innerText = "Woof! Ready to launch, pup!";
                     }
                 }
             } catch (error) {
                 console.error("Liquidity status error:", error);
-                liquidityButton.disabled = false;
-                status.innerText = "Error checking liquidity status, but you can try adding.";
-                dogMessage.innerText = "Woof! Let's try adding liquidity anyway, pup!";
+                launchButton.disabled = false;
+                status.innerText = "Error checking liquidity status, but you can try launching.";
+                dogMessage.innerText = "Woof! Let's try launching anyway, pup!";
             }
         }
 
-        async function addLiquidity() {
+        async function launchLiquidity() {
             const status = document.getElementById('networkStatus');
-            const liquidityButton = document.getElementById('addLiquidityButton');
+            const launchButton = document.getElementById('launchButton');
             const dogMessage = document.getElementById('dogMessage');
-            const memeCoinAddress = document.getElementById('memeCoinAddress').value.trim();
+            const memeCoinAddress = document.getElementById('memeCoinSelect').value;
 
             if (!web3 || !account) {
                 status.innerText = "Please connect wallet first.";
@@ -1054,15 +1065,15 @@
             }
 
             if (!web3.utils.isAddress(memeCoinAddress)) {
-                status.innerText = "Please enter a valid meme coin address.";
+                status.innerText = "Please select a valid meme coin.";
                 dogMessage.innerText = getRandomMessage('invalidInput');
                 return;
             }
 
             try {
-                liquidityButton.disabled = true;
-                liquidityButton.innerHTML = 'Adding... <span class="spinner"></span>';
-                status.innerText = "Adding liquidity...";
+                launchButton.disabled = true;
+                launchButton.innerHTML = 'Launching... <span class="spinner"></span>';
+                status.innerText = "Launching liquidity...";
                 dogMessage.innerText = getRandomMessage('liquidityStart');
 
                 const memeCoinContract = new web3.eth.Contract(erc20Abi, memeCoinAddress);
@@ -1108,7 +1119,7 @@
                 });
                 await waitForTransaction(tx.transactionHash);
 
-                status.innerText = "Liquidity added successfully!";
+                status.innerText = "Liquidity launched successfully!";
                 dogMessage.innerText = getRandomMessage('liquiditySuccess');
                 await updateRecentMemeCoins();
                 await updateBalances();
@@ -1118,13 +1129,16 @@
                 if (error.code === 4001) {
                     status.innerText = "Transaction canceled by user.";
                     dogMessage.innerText = getRandomMessage('userDenied');
+                } else if (error.message.includes('insufficient funds for gas')) {
+                    status.innerText = "Insufficient gas funds.";
+                    dogMessage.innerText = "Woof! Not enough gas, pup! Try increasing gas limit.";
                 } else {
-                    status.innerText = "Liquidity addition failed.";
+                    status.innerText = "Launch failed.";
                     dogMessage.innerText = getRandomMessage('liquidityFail');
                 }
             } finally {
-                liquidityButton.disabled = false;
-                liquidityButton.innerHTML = 'Add Liquidity';
+                launchButton.disabled = false;
+                launchButton.innerHTML = 'Launch';
             }
         }
 
@@ -1132,8 +1146,8 @@
         document.getElementById('depositButton').addEventListener('click', depositWSTAR);
         document.getElementById('withdrawButton').addEventListener('click', withdrawWSTAR);
         document.getElementById('deployMemeCoinButton').addEventListener('click', deployMemeCoin);
-        document.getElementById('addLiquidityButton').addEventListener('click', addLiquidity);
-        document.getElementById('memeCoinAddress').addEventListener('input', checkLiquidityStatus);
+        document.getElementById('launchButton').addEventListener('click', launchLiquidity);
+        document.getElementById('memeCoinSelect').addEventListener('change', checkLiquidityStatus);
     </script>
 </body>
 </html>
